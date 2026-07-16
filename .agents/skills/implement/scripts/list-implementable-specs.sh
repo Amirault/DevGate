@@ -1,6 +1,6 @@
 #!/bin/bash
 # list-implementable-specs.sh — Lists specs ready for implementation
-# Usage: ./list-implementable-specs.sh [--project <project-name>]
+# Usage: ./list-implementable-specs.sh [--project PricingApi|IpaasManagementStudio]
 # Output: JSON array of specs with metadata
 # Exit 0 = at least one spec found, Exit 1 = none found
 
@@ -17,7 +17,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         *)
-            echo "Usage: list-implementable-specs.sh [--project <project-name>]" >&2
+            echo "Usage: list-implementable-specs.sh [--project PricingApi|IpaasManagementStudio]" >&2
             exit 1
             ;;
     esac

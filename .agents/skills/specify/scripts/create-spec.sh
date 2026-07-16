@@ -4,9 +4,31 @@
 # Output: creates docs/backlog/todo/YYYY-MM-DD-<slug>.md
 
 SLUG="$1"
-SCRIPT_DIR="$(dirname "$0")"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 TEMPLATE="$SCRIPT_DIR/../templates/spec-template.md"
-SPEC_DIR="docs/backlog/todo"
+
+# Determine spec directory: walk up from current directory first, then fall back to git root
+SEARCH_DIR="$(pwd)"
+while [ "$SEARCH_DIR" != "/" ]; do
+    if [ -d "$SEARCH_DIR/docs/backlog" ]; then
+        SPEC_DIR="$SEARCH_DIR/docs/backlog/todo"
+        break
+    fi
+    SEARCH_DIR="$(dirname "$SEARCH_DIR")"
+done
+
+# Fallback: use git root if no docs/backlog found above
+if [ -z "$SPEC_DIR" ]; then
+    REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+    if [ -n "$REPO_ROOT" ] && [ -d "$REPO_ROOT/docs/backlog" ]; then
+        SPEC_DIR="$REPO_ROOT/docs/backlog/todo"
+    fi
+fi
+
+if [ -z "$SPEC_DIR" ]; then
+    echo "Error: Could not find docs/backlog/ directory. Run from within a git repository or a project tree." >&2
+    exit 1
+fi
 
 if [ -z "$SLUG" ]; then
     echo "Usage: create-spec.sh <slug>" >&2

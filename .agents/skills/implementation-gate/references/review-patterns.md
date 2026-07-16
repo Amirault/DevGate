@@ -94,7 +94,7 @@ public async Task GivenQuote_WhenCalculating_ShouldHandleOptionalDiscount(
 **Spec excerpt**:
 ```markdown
 ### Example 1: Successful Quote Creation
-- **Context**: User "alex.smith@example.com" with role "underwriter" requests quote for product "MRH"
+- **Context**: User "jean.dupont@wakam.com" with role "underwriter" requests quote for product "MRH"
 - **Action**: Submit quote request
 - **Result**: Quote created with ID and status "DRAFT"
 ```
@@ -261,6 +261,34 @@ Change scenarios:
 - Works correctly today
 - Flag for future: consider making this configurable or deriving from a single source of truth
 - Not blocking this implementation, but worth tracking
+
+---
+
+### Example 8: BLOCKER — Ripple-Effect Gap (Impact-Aware Review)
+
+**Scenario**: User renamed a public method `CalculateBasePremium` → `CalculatePremium` in `PricingEngine.cs` and updated its own tests. The diff shows only `PricingEngine.cs` + `PricingEngineTests.cs`.
+
+**Implementation review**:
+
+```
+🔍 Changed symbol: PricingEngine.CalculateBasePremium (renamed → CalculatePremium)
+   Consumers found via grep: QuoteHandler.cs:34 calls CalculateBasePremium — NOT in diff
+```
+
+**Impact & Blast Radius**:
+```
+- Changed symbols traced: PricingEngine.CalculateBasePremium (1 consumer)
+- Ripple-effect gaps: QuoteHandler.cs:34 still calls CalculateBasePremium — will not compile
+- Contract changes: none
+- System/ops follow-ups: none
+```
+
+❌ **Verdict**: BLOCKER
+- The diff is internally consistent (PricingEngine + its tests pass), but a downstream caller was missed.
+- A review that ignores blast radius misses this because `QuoteHandler.cs` is not in the diff.
+- Fix: update `QuoteHandler.cs` (and its tests) in the same change.
+
+This is exactly what "focus on git changes but stay aware of the overall impact" catches: the focus is the diff, the awareness is the caller the diff broke.
 
 ---
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # find-in-progress-spec.sh — Locates the spec file in backlog/in-progress/
-# Usage: ./find-in-progress-spec.sh [--project <project-name>]
+# Usage: ./find-in-progress-spec.sh [--project PricingApi|IpaasManagementStudio]
 # Exit 0 = exactly one spec found (prints path), Exit 1 = zero or multiple specs found
 
 BACKLOG_DIR="docs/backlog/in-progress"
@@ -14,7 +14,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         *)
-            echo "Usage: find-in-progress-spec.sh [--project <project-name>]" >&2
+            echo "Usage: find-in-progress-spec.sh [--project PricingApi|IpaasManagementStudio]" >&2
             exit 1
             ;;
     esac
