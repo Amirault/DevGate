@@ -1,6 +1,6 @@
 ---
 name: test-implementation
-description: "Single source of truth for C#/.NET test patterns in this project. Read this skill before writing any [Fact], [Test], or [Theory] — including simple ones. Always invoke when writing, modifying, or reviewing tests, and whenever tdd-cycle, coverage-guard, or implementation-gate delegates to test patterns. Covers: FIRST principles, Given/When/Then structure with title-case comments (// Given // When // Then), factory methods, AnyX default records with with-expressions, in-memory fakes for use-case tests, TestContainers for secondary adapters, Given_When_Should naming, FluentAssertions lean assertions, [Theory]/[InlineData] for finite inputs (enums), exclusion testing (assert what should NOT be there), and false-positive prevention."
+description: "Single source of truth for C#/.NET test patterns in this project. Read this skill before writing any [Fact], [Test], or [Theory] — including simple ones. Always invoke when writing, modifying, or reviewing tests, and whenever tdd-cycle, coverage-guard, or review delegates to test patterns. Covers: FIRST principles, Given/When/Then structure with title-case comments (// Given // When // Then), factory methods, AnyX default records with with-expressions, in-memory fakes for use-case tests, TestContainers for secondary adapters, Given_When_Should naming, FluentAssertions lean assertions, [Theory]/[InlineData] for finite inputs (enums), exclusion testing (assert what should NOT be there), and false-positive prevention."
 effort: medium
 ---
 

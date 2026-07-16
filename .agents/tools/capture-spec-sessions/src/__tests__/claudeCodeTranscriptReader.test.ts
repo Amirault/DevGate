@@ -101,7 +101,7 @@ describe("ClaudeCodeTranscriptReader", () => {
       userEntry("session-gate", "u3", "2026-06-30T11:00:00.000Z", `validate ${SPEC}`),
       assistantEntry("session-gate", "a3", "2026-06-30T11:00:01.000Z", [
         { type: "text", text: "Gate is green." },
-        { type: "tool_use", id: "toolu_gate", name: "Bash", input: { command: markerCommand("implementation-gate") } },
+        { type: "tool_use", id: "toolu_gate", name: "Bash", input: { command: markerCommand("review") } },
       ]),
     ]);
 
@@ -116,7 +116,7 @@ describe("ClaudeCodeTranscriptReader", () => {
     expect(bundle!.header.conversations_per_phase).toEqual({
       specify: 1,
       implement: 1,
-      "implementation-gate": 1,
+      "review": 1,
     });
     expect(summary.skipped_rows).toEqual([]);
 
@@ -188,7 +188,7 @@ describe("ClaudeCodeTranscriptReader", () => {
       source: "claude-code",
       complete: false,
       phases_present: ["specify"],
-      phases_missing: ["implement", "implementation-gate"],
+      phases_missing: ["implement", "review"],
     }));
     expect(eventLines.map((line) => JSON.parse(line)).some((event) => event.kind === "tool_call")).toBe(true);
   });

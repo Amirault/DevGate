@@ -118,7 +118,7 @@ function toolCall(
   };
 }
 
-function marker(phase: "specify" | "implement" | "implementation-gate"): string {
+function marker(phase: "specify" | "implement" | "review"): string {
   return `: SPEC_MARKER v=1 spec_id=${SPEC} phase=${phase}`;
 }
 
@@ -141,7 +141,7 @@ function seedToolCalls(
 function seedMarker(
   db: Database.Database,
   sessionId: string,
-  phase: "specify" | "implement" | "implementation-gate",
+  phase: "specify" | "implement" | "review",
   timestamp: number,
   name = "terminal"
 ): void {
@@ -187,7 +187,7 @@ describe("HermesConversationReader", () => {
   it("GivenExactLifecycleMarkers_WhenTheHermesCliRuns_ShouldWriteACompleteBundle", () => {
     // Given
     const db = createHermesDb(dbPath);
-    const phases = ["specify", "implement", "implementation-gate"] as const;
+    const phases = ["specify", "implement", "review"] as const;
     phases.forEach((phase, index) => {
       const sessionId = `session-${phase}`;
       seedSession(db, sessionId, { startedAt: 1_784_000_000 + index });
@@ -214,10 +214,10 @@ describe("HermesConversationReader", () => {
       type: "bundle_header",
       source: "hermes",
       complete: true,
-      phases_present: ["specify", "implement", "implementation-gate"],
+      phases_present: ["specify", "implement", "review"],
     });
     expect(lines.slice(1).map((line) => line.content)).toEqual(
-      expect.arrayContaining(["specify-prompt", "implement-prompt", "implementation-gate-prompt"])
+      expect.arrayContaining(["specify-prompt", "implement-prompt", "review-prompt"])
     );
   });
 
@@ -350,7 +350,7 @@ describe("HermesConversationReader", () => {
       parent: "delegate-child",
       modelConfig: { _branched_from: "delegate-child" },
     });
-    seedMarker(db, "explicit-branch", "implementation-gate", 1_784_000_002);
+    seedMarker(db, "explicit-branch", "review", 1_784_000_002);
     const ids = [
       "compression-child",
       "delegate-child",
@@ -373,7 +373,7 @@ describe("HermesConversationReader", () => {
     expect(phases).toEqual({
       "compression-child": "implement",
       "delegate-child": "implement",
-      "explicit-branch": "implementation-gate",
+      "explicit-branch": "review",
     });
     expect(bundle?.header.conversations_per_phase.implement).toBe(3);
   });
@@ -389,7 +389,7 @@ describe("HermesConversationReader", () => {
     seedSession(db, "blocked", { parent: "conflict", source: "subagent" });
     seedText(db, "blocked", "blocked", 1_784_000_003);
     seedSession(db, "restarted", { parent: "conflict", source: "subagent" });
-    seedMarker(db, "restarted", "implementation-gate", 1_784_000_004);
+    seedMarker(db, "restarted", "review", 1_784_000_004);
     seedText(db, "restarted", "restarted", 1_784_000_005);
     db.close();
 
@@ -399,7 +399,7 @@ describe("HermesConversationReader", () => {
     // Then
     expect(result.bundle?.events.map((event) => event.content)).not.toContain("blocked");
     expect(result.bundle?.events.find((event) => event.content === "restarted")?.phase).toBe(
-      "implementation-gate"
+      "review"
     );
     expect(result.summary.skipped_rows).toEqual(
       expect.arrayContaining([

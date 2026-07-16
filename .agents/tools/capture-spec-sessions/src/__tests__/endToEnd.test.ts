@@ -38,10 +38,10 @@ describe("§9.10 end-to-end (CLI -> snapshot adapter -> use-case -> sink)", () =
     seedQuery(db, { conversation_id: "c2", start_ts: "2026-06-30 10:10:00.000000", text: "implement it" });
     seedBlock(db, { conversation_id: "c2", start_ts: "2026-06-30 10:20:00.000000", command: "npm test", subagent_task_id: "sub-1" });
     seedTask(db, { conversation_id: "c2", task: encodeString(1, "subagent message"), last_modified_at: "2026-06-30 10:30:00.000000" });
-    // implementation-gate (c3) + a re-run gate (c4)
-    seedMarker(db, { spec_id: SPEC, phase: "implementation-gate", conversation_id: "c3", start_ts: "2026-06-30 11:00:00.000000" });
+    // review (c3) + a re-run gate (c4)
+    seedMarker(db, { spec_id: SPEC, phase: "review", conversation_id: "c3", start_ts: "2026-06-30 11:00:00.000000" });
     seedQuery(db, { conversation_id: "c3", start_ts: "2026-06-30 11:10:00.000000", text: "gate run 1" });
-    seedMarker(db, { spec_id: SPEC, phase: "implementation-gate", conversation_id: "c4", start_ts: "2026-06-30 12:00:00.000000" });
+    seedMarker(db, { spec_id: SPEC, phase: "review", conversation_id: "c4", start_ts: "2026-06-30 12:00:00.000000" });
     seedQuery(db, { conversation_id: "c4", start_ts: "2026-06-30 12:10:00.000000", text: "gate run 2" });
     db.close();
 
@@ -68,9 +68,9 @@ describe("§9.10 end-to-end (CLI -> snapshot adapter -> use-case -> sink)", () =
     expect(header.type).toBe("bundle_header");
     expect(header.spec_id).toBe(SPEC);
     expect(header.complete).toBe(true);
-    expect(header.phases_present).toEqual(["specify", "implement", "implementation-gate"]);
+    expect(header.phases_present).toEqual(["specify", "implement", "review"]);
     expect(header.phases_missing).toEqual([]);
-    expect(header.conversations_per_phase["implementation-gate"]).toBe(2);
+    expect(header.conversations_per_phase["review"]).toBe(2);
 
     const events = parsed.slice(1);
 
@@ -81,7 +81,7 @@ describe("§9.10 end-to-end (CLI -> snapshot adapter -> use-case -> sink)", () =
 
     // all three phases appear among events
     expect(new Set(events.map((e) => e.phase))).toEqual(
-      new Set(["specify", "implement", "implementation-gate"])
+      new Set(["specify", "implement", "review"])
     );
 
     // time-ordered with a monotonic 1..N sequence
@@ -203,8 +203,8 @@ describe("§9.18 end-to-end merge + guards", () => {
       type: "bundle_header",
       spec_id: "different-spec",
       phases_present: ["specify"],
-      phases_missing: ["implement", "implementation-gate"],
-      conversations_per_phase: { specify: 1, implement: 0, "implementation-gate": 0 },
+      phases_missing: ["implement", "review"],
+      conversations_per_phase: { specify: 1, implement: 0, "review": 0 },
       complete: false,
       conversation_ids: ["c1"],
       extracted_at: "2026-07-14T00:00:00.000Z",

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { mergeBundles } from "../domain/mergeBundle.js";
+import { normalizeBundle } from "../domain/bundleHeader.js";
 import type {
   BundleSource,
   ConversationEvent,
@@ -41,7 +42,7 @@ function bundle(
       spec_id: specId,
       phases_present: [],
       phases_missing: [],
-      conversations_per_phase: { specify: 0, implement: 0, "implementation-gate": 0 },
+      conversations_per_phase: { specify: 0, implement: 0, "review": 0 },
       complete: false,
       conversation_ids: [],
       extracted_at: "2026-07-14T00:00:00.000Z",
@@ -67,7 +68,7 @@ describe("§9.16 mergeBundles decay-safe merge", () => {
 
     // Then — both phases survive; specify recovered from disk, implement from live
     expect(merged.header.phases_present).toEqual(["specify", "implement"]);
-    expect(merged.header.phases_missing).toEqual(["implementation-gate"]);
+    expect(merged.header.phases_missing).toEqual(["review"]);
     expect(merged.header.complete).toBe(false);
     expect(merged.events).toHaveLength(2);
     expect(merged.events.map((e) => e.phase)).toEqual(["specify", "implement"]);
@@ -102,7 +103,7 @@ describe("§9.16 mergeBundles decay-safe merge", () => {
     expect(merged.header.conversations_per_phase).toEqual({
       specify: 1,
       implement: 1,
-      "implementation-gate": 0,
+      "review": 0,
     });
   });
 
@@ -156,7 +157,7 @@ describe("§9.16 mergeBundles decay-safe merge", () => {
       event("c2", "implement", "2026-07-14 10:00:00.000000", "impl", 2),
     ]);
     const fresh = bundle([
-      event("c3", "implementation-gate", "2026-07-14 11:00:00.000000", "gate", 1),
+      event("c3", "review", "2026-07-14 11:00:00.000000", "gate", 1),
     ]);
 
     // When
@@ -167,7 +168,7 @@ describe("§9.16 mergeBundles decay-safe merge", () => {
     expect(merged.header.phases_present).toEqual([
       "specify",
       "implement",
-      "implementation-gate",
+      "review",
     ]);
     expect(merged.header.phases_missing).toEqual([]);
     expect(merged.header.conversation_ids).toEqual(["c1", "c2", "c3"]);
@@ -203,5 +204,41 @@ describe("§9.16 mergeBundles decay-safe merge", () => {
     expect(merged.events).toHaveLength(1);
     expect(merged.events[0]!.content).toBe("spec");
     expect(merged.events[0]!.seq).toBe(1);
+  });
+});
+
+describe("§9.18 normalizeBundle legacy-phase normalization", () => {
+  it("Given a stored bundle whose events carry the legacy `implementation-gate` phase, When normalized, Then events become `review` and the header is recomputed", () => {
+    // Given — a bundle captured before the rename: events tagged implementation-gate
+    const legacy = bundle([
+      event("c1", "implementation-gate" as unknown as Phase, "2026-07-14 11:00:00.000000", "gate it", 1),
+    ]);
+
+    // When
+    const normalized = normalizeBundle(legacy);
+
+    // Then — legacy phase mapped to review, header recomputed consistently
+    expect(normalized.events.map((e) => e.phase)).toEqual(["review"]);
+    expect(normalized.header.phases_present).toEqual(["review"]);
+    expect(normalized.header.phases_missing).toEqual(["specify", "implement"]);
+    expect(normalized.header.conversations_per_phase).toEqual({
+      specify: 0,
+      implement: 0,
+      review: 1,
+    });
+  });
+
+  it("Given a bundle that already uses only canonical phases, When normalized, Then it is returned unchanged (fast path)", () => {
+    // Given — canonical bundle, no legacy labels
+    const canonical = bundle([
+      event("c1", "specify", "2026-07-14 09:00:00.000000", "spec it", 1),
+      event("c2", "review", "2026-07-14 11:00:00.000000", "gate it", 2),
+    ]);
+
+    // When
+    const normalized = normalizeBundle(canonical);
+
+    // Then — same reference (fast path, no recompute)
+    expect(normalized).toBe(canonical);
   });
 });

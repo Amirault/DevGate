@@ -110,7 +110,7 @@ stateDiagram-v2
     on_hold --> specifying : Resume
     rejected --> specifying : Resurrect
     ready_to_implement --> implementation_in_progress : implement skill starts
-    implementation_in_progress --> implemented : implementation-gate passes
+    implementation_in_progress --> implemented : review passes
     implemented --> done : Human confirms DONE
 ```
 
@@ -230,5 +230,5 @@ After intentionally changing skill behavior (e.g., adding a new phase):
 ## Integration with Other Skills
 
 - **grill-me**: Optional Phase 3.5 stress-test of decisions before spec writing
-- **implementation-gate**: After implementation, validates spec alignment, test coverage, and build status
+- **review**: After implementation, validates spec alignment, test coverage, and build status
 - **implement skill**: Executes the Implementation Plan from the approved spec in a fresh session

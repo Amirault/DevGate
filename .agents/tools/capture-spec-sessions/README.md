@@ -2,7 +2,7 @@
 
 Reads local agent session stores and exports **one spec's full conversation
 history** — across the three spec-driven phases (`specify`, `implement`,
-`implementation-gate`) — as raw JSONL, ordered chronologically while preserving
+`review`) — as raw JSONL, ordered chronologically while preserving
 each conversation's original message order, ready for a later learning phase
 (evaluating prompt quality, agent decisions, execution time, …).
 
@@ -30,6 +30,12 @@ Given a spec slug (the markdown filename under `docs/backlog/`, e.g.
      JSONL transcript.
    - Hermes: an exact marker line in an assistant `terminal` or
      `run_shell_command` tool call stored in `messages.tool_calls`.
+
+   > **Phase rename (backward-compatible).** The third phase was renamed from
+   > `implementation-gate` to `review`. Markers carrying the legacy
+   > `phase=implementation-gate` label still parse (normalized to `review`),
+   > and previously-captured bundles with the old label are normalized on merge
+   > — historical sessions need no manual migration.
 2. **Reads every event** for those conversations from the selected source:
    - Claude Code `type: "user"` entries → prompts and tool results
      (`kind: "query"` / `kind: "tool_result"`)
@@ -216,7 +222,7 @@ a trailing newline.
 **Line 1 — bundle header:**
 
 ```json
-{"type":"bundle_header","spec_id":"...","phases_present":["specify","implement"],"phases_missing":["implementation-gate"],"conversations_per_phase":{"specify":1,"implement":1,"implementation-gate":0},"complete":false,"conversation_ids":["..."],"extracted_at":"...","source":"warp"}
+{"type":"bundle_header","spec_id":"...","phases_present":["specify","implement"],"phases_missing":["review"],"conversations_per_phase":{"specify":1,"implement":1,"review":0},"complete":false,"conversation_ids":["..."],"extracted_at":"...","source":"warp"}
 ```
 
 **Every subsequent line — one event:**
@@ -359,7 +365,7 @@ your live DB to validate end-to-end.
   morning was fully unbindable the same night). Extract soon after finishing a
   spec — don't rely on being able to extract it days later.
   **Mitigation (capture-at-close + decay-safe merge):** the phase skills
-  (`specify`, `implement`, `implementation-gate`) now capture at close into
+  (`specify`, `implement`, `review`) now capture at close into
   `spec-sessions/<slug>.jsonl` (this folder, gitignored). A later capture merges
   fresh + stored decay-safe — fresh events are primary, stored events fill gaps
   left by marker decay or ring-buffer eviction — so a phase captured at close is

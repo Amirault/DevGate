@@ -1,11 +1,16 @@
-import type { BundleHeader, BundleSource, Phase } from "./models.js";
-import { PHASES } from "./models.js";
+import type {
+  BundleHeader,
+  BundleSource,
+  Phase,
+  SpecBundle,
+} from "./models.js";
+import { PHASES, normalizePhase } from "./models.js";
 
 function emptyPhaseSets(): Record<Phase, Set<string>> {
   return {
     specify: new Set<string>(),
     implement: new Set<string>(),
-    "implementation-gate": new Set<string>(),
+    review: new Set<string>(),
   };
 }
 
@@ -40,5 +45,44 @@ export function computeBundleHeader(
     complete: phases_missing.length === 0,
     conversation_ids: [...phaseByCid.keys()],
     source,
+  };
+}
+
+const LEGACY_PHASE = "implementation-gate";
+
+/**
+ * Normalize a bundle whose events may carry the legacy `implementation-gate`
+ * phase label (emitted before the phase was renamed to `review`). Events are
+ * mapped to the canonical phase and the header is recomputed so the
+ * phases_present / phases_missing / conversations_per_phase fields stay
+ * consistent. Bundles that already use only canonical phases are returned
+ * unchanged (fast path — no recompute).
+ */
+export function normalizeBundle(bundle: SpecBundle): SpecBundle {
+  if (!bundle.events.some((e) => (e.phase as string) === LEGACY_PHASE)) {
+    return bundle;
+  }
+  const events = bundle.events.map((e) => ({
+    ...e,
+    phase: normalizePhase(e.phase as string),
+  }));
+  const phaseByCid = new Map<string, Phase>();
+  for (const e of events) {
+    if (!phaseByCid.has(e.conversation_id)) {
+      phaseByCid.set(e.conversation_id, e.phase);
+    }
+  }
+  const headerFields = computeBundleHeader(
+    bundle.header.spec_id,
+    bundle.header.source,
+    phaseByCid
+  );
+  return {
+    header: {
+      ...headerFields,
+      type: "bundle_header",
+      extracted_at: bundle.header.extracted_at,
+    },
+    events,
   };
 }

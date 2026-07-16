@@ -36,7 +36,7 @@ describe("§9.7 extractSpecBundle completeness", () => {
     seedQuery(db, { conversation_id: "c1", start_ts: "2026-06-30 10:05:00.000000", text: "spec it" });
     seedMarker(db, { spec_id: SPEC, phase: "implement", conversation_id: "c2", start_ts: "2026-06-30 11:00:00.000000" });
     seedQuery(db, { conversation_id: "c2", start_ts: "2026-06-30 11:05:00.000000", text: "implement it" });
-    seedMarker(db, { spec_id: SPEC, phase: "implementation-gate", conversation_id: "c3", start_ts: "2026-06-30 12:00:00.000000" });
+    seedMarker(db, { spec_id: SPEC, phase: "review", conversation_id: "c3", start_ts: "2026-06-30 12:00:00.000000" });
     seedQuery(db, { conversation_id: "c3", start_ts: "2026-06-30 12:05:00.000000", text: "gate it" });
 
     // When
@@ -45,12 +45,12 @@ describe("§9.7 extractSpecBundle completeness", () => {
     // Then
     expect(bundle).not.toBeNull();
     expect(bundle!.header.complete).toBe(true);
-    expect(bundle!.header.phases_present).toEqual(["specify", "implement", "implementation-gate"]);
+    expect(bundle!.header.phases_present).toEqual(["specify", "implement", "review"]);
     expect(bundle!.header.phases_missing).toEqual([]);
     expect(bundle!.header.conversations_per_phase).toEqual({
       specify: 1,
       implement: 1,
-      "implementation-gate": 1,
+      "review": 1,
     });
     expect(summary.complete).toBe(true);
     db.close();
@@ -62,7 +62,7 @@ describe("§9.7 extractSpecBundle completeness", () => {
     seedMarker(db, { spec_id: SPEC, phase: "specify", conversation_id: "c1", start_ts: "2026-06-30 10:00:00.000000" });
     seedMarker(db, { spec_id: SPEC, phase: "implement", conversation_id: "c2", start_ts: "2026-06-30 11:00:00.000000" });
     db.prepare(`INSERT INTO commands (command, start_ts, is_agent_executed) VALUES (?, ?, 1)`).run(
-      `: SPEC_MARKER v=1 spec_id=${SPEC} phase=implementation-gate`,
+      `: SPEC_MARKER v=1 spec_id=${SPEC} phase=review`,
       "2026-06-30 12:00:00.000000"
     );
 
@@ -72,11 +72,11 @@ describe("§9.7 extractSpecBundle completeness", () => {
     // Then — incomplete, missing phase reported, unbindable marker surfaced as a warning
     expect(bundle).not.toBeNull();
     expect(bundle!.header.complete).toBe(false);
-    expect(bundle!.header.phases_missing).toEqual(["implementation-gate"]);
+    expect(bundle!.header.phases_missing).toEqual(["review"]);
     expect(summary.complete).toBe(false);
-    expect(summary.phases_missing).toEqual(["implementation-gate"]);
+    expect(summary.phases_missing).toEqual(["review"]);
     expect(summary.unbindable).toHaveLength(1);
-    expect(summary.unbindable[0]!.phase).toBe("implementation-gate");
+    expect(summary.unbindable[0]!.phase).toBe("review");
     db.close();
   });
 
@@ -95,12 +95,12 @@ describe("§9.7 extractSpecBundle completeness", () => {
   });
 
   it("Given re-runs of a phase (two conversations), When extracted, Then both are kept", () => {
-    // Given — two implementation-gate conversations for the same spec
+    // Given — two review conversations for the same spec
     const db = createFixture(dbPath);
     seedMarker(db, { spec_id: SPEC, phase: "specify", conversation_id: "c1", start_ts: "2026-06-30 10:00:00.000000" });
     seedMarker(db, { spec_id: SPEC, phase: "implement", conversation_id: "c2", start_ts: "2026-06-30 11:00:00.000000" });
-    seedMarker(db, { spec_id: SPEC, phase: "implementation-gate", conversation_id: "c3", start_ts: "2026-06-30 12:00:00.000000" });
-    seedMarker(db, { spec_id: SPEC, phase: "implementation-gate", conversation_id: "c4", start_ts: "2026-06-30 13:00:00.000000" });
+    seedMarker(db, { spec_id: SPEC, phase: "review", conversation_id: "c3", start_ts: "2026-06-30 12:00:00.000000" });
+    seedMarker(db, { spec_id: SPEC, phase: "review", conversation_id: "c4", start_ts: "2026-06-30 13:00:00.000000" });
 
     // When
     const { bundle, summary } = extractSpecBundle(new WarpConversationReader(fakeSource(db)), SPEC);
@@ -108,7 +108,7 @@ describe("§9.7 extractSpecBundle completeness", () => {
     // Then — both re-run conversations kept, still complete
     expect(bundle).not.toBeNull();
     expect(bundle!.header.complete).toBe(true);
-    expect(bundle!.header.conversations_per_phase["implementation-gate"]).toBe(2);
+    expect(bundle!.header.conversations_per_phase["review"]).toBe(2);
     expect(bundle!.header.conversation_ids).toEqual(["c1", "c2", "c3", "c4"]);
     expect(summary.conversations).toBe(4);
     db.close();
@@ -139,7 +139,7 @@ describe("§9.8 extractSpecBundle ordering", () => {
     seedBlock(db, { conversation_id: "c2", start_ts: "2026-06-30 10:20:00.000000", command: "npm test" });
     seedQuery(db, { conversation_id: "c2", start_ts: "2026-06-30 10:10:00.000000", text: "impl query" });
     // gate conversation c3
-    seedMarker(db, { spec_id: SPEC, phase: "implementation-gate", conversation_id: "c3", start_ts: "2026-06-30 11:00:00.000000" });
+    seedMarker(db, { spec_id: SPEC, phase: "review", conversation_id: "c3", start_ts: "2026-06-30 11:00:00.000000" });
     seedQuery(db, { conversation_id: "c3", start_ts: "2026-06-30 11:10:00.000000", text: "gate query" });
 
     // When
@@ -153,7 +153,7 @@ describe("§9.8 extractSpecBundle ordering", () => {
     expect(seq).toEqual(events.map((_, i) => i + 1)); // 1..N
     expect(new Set(seq).size).toBe(seq.length); // unique
     // phase matches the conversation that emitted each event
-    const phaseOf = new Map([["c1", "specify"], ["c2", "implement"], ["c3", "implementation-gate"]]);
+    const phaseOf = new Map([["c1", "specify"], ["c2", "implement"], ["c3", "review"]]);
     for (const e of events) {
       expect(e.phase).toBe(phaseOf.get(e.conversation_id));
     }
@@ -283,5 +283,47 @@ describe("§9.17 extractSpecBundle merge + fresh-read-error fallback", () => {
     expect(bundle).not.toBeNull();
     expect(bundle!.header.phases_present).toEqual(["implement"]);
     expect(bundle!.events).toHaveLength(1);
+  });
+
+  it("Given a stored bundle with legacy `implementation-gate` events, When extracted with existingBundle, Then the merged result normalizes the legacy phase to `review`", () => {
+    // Given — a bundle persisted before the rename; its review-phase events
+    // carry the old `implementation-gate` label. The fresh read adds specify.
+    const existing: SpecBundle = {
+      header: {
+        type: "bundle_header",
+        spec_id: SPEC,
+        phases_present: [],
+        phases_missing: [],
+        conversations_per_phase: { specify: 0, implement: 0, review: 0 },
+        complete: false,
+        conversation_ids: [],
+        extracted_at: "2026-07-14T00:00:00.000Z",
+        source: "warp",
+      },
+      events: [
+        {
+          spec_id: SPEC,
+          phase: "implementation-gate" as unknown as Phase,
+          conversation_id: "c1",
+          seq: 1,
+          ts: "2026-07-14 11:00:00.000000",
+          role: "user",
+          kind: "query",
+          content: "gate it",
+          meta: {},
+        },
+      ],
+    };
+    const reader = fakeReader(
+      specReadWith("specify", "c2", [{ ts: "2026-07-14 09:00:00.000000", content: "spec it" }])
+    );
+
+    // When
+    const { bundle } = extractSpecBundle(reader, SPEC, { existingBundle: existing });
+
+    // Then — legacy phase normalized to review before merge; both phases present
+    expect(bundle).not.toBeNull();
+    expect(bundle!.events.map((e) => e.phase)).toEqual(["specify", "review"]);
+    expect(bundle!.header.phases_present).toEqual(["specify", "review"]);
   });
 });

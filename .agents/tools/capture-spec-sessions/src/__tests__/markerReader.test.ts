@@ -19,7 +19,7 @@ describe("parseMarker", () => {
     });
     expect(
       parseMarker(": SPEC_MARKER v=1 spec_id=y phase=implementation-gate")
-    ).toEqual({ spec_id: "y", phase: "implementation-gate" });
+    ).toEqual({ spec_id: "y", phase: "review" });
   });
 
   it("rejects non-marker text (diagnostic scripts that merely mention the marker)", () => {

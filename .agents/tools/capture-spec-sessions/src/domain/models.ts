@@ -8,8 +8,17 @@
  */
 
 /** The three spec-driven phases, in lifecycle order. */
-export const PHASES = ["specify", "implement", "implementation-gate"] as const;
+export const PHASES = ["specify", "implement", "review"] as const;
 export type Phase = (typeof PHASES)[number];
+
+/**
+ * Normalize a phase label. Historical markers emitted `implementation-gate`
+ * before the phase was renamed to `review`; legacy labels are mapped to the
+ * canonical form so old sessions keep parsing without manual migration.
+ */
+export function normalizePhase(phase: string): Phase {
+  return phase === "implementation-gate" ? "review" : (phase as Phase);
+}
 
 /** Who emitted an event in the conversation. */
 export type Role = "user" | "assistant" | "tool";

@@ -10,7 +10,7 @@ function baseSummary(overrides: Partial<RunSummary> = {}): RunSummary {
     complete: true,
     conversations: 1,
     events: 3,
-    phases_present: ["specify", "implement", "implementation-gate"],
+    phases_present: ["specify", "implement", "review"],
     phases_missing: [],
     unbindable: [],
     collisions: [],
@@ -65,7 +65,7 @@ describe("§9.13 formatRunReport — CLI diagnostics", () => {
       events: 0,
       complete: false,
       phases_present: [],
-      phases_missing: ["specify", "implement", "implementation-gate"],
+      phases_missing: ["specify", "implement", "review"],
       unbindable: [unbindableMarker("implement", "2026-06-30 11:00:00.000000")],
     });
 
@@ -90,7 +90,7 @@ describe("§9.13 formatRunReport — CLI diagnostics", () => {
       conversations: 2,
       complete: false,
       phases_present: ["specify", "implement"],
-      phases_missing: ["implementation-gate"],
+      phases_missing: ["review"],
     });
 
     // When
@@ -100,7 +100,7 @@ describe("§9.13 formatRunReport — CLI diagnostics", () => {
     expect(report.exitCode).toBe(1);
     const joined = report.stderr.join("\n");
     expect(joined).toContain("incomplete spec");
-    expect(joined).toContain("implementation-gate");
+    expect(joined).toContain("review");
     expect(joined.toLowerCase()).not.toContain("binding");
     expect(joined).not.toContain("--list");
   });

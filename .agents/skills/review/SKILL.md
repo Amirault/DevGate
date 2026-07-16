@@ -1,15 +1,15 @@
 ---
-name: implementation-gate
+name: review
 description: "Use when the user wants to validate their work is ready. Runs quality gates on git changes against the spec — checks test coverage, code quality, refactoring review (Fowler/Uncle Bob), impact/blast radius, architecture assessment, and build status. Triggers when user says review, check, validate, done, ready, or asks if something is ready to merge."
 effort: high
 ---
 
-# Implementation Gate
+# Review
 
 **Purpose**: Validate that implementation is **ready for human review** — not that it's done.
 
 ```
-specify → implement → implementation-gate (you are here) → human says DONE → done
+specify → implement → review (you are here) → human says DONE → done
 ```
 
 ## Review Scope — Impact-Aware Git Changes (Default)
@@ -42,7 +42,7 @@ Every implementation must have a corresponding specification in `docs/backlog/`.
 
 **Use the script to locate the spec:**
 ```bash
-.agents/skills/implementation-gate/scripts/find-in-progress-spec.sh
+.agents/skills/review/scripts/find-in-progress-spec.sh
 ```
 
 **Script behavior:**
@@ -69,10 +69,10 @@ Every implementation must have a corresponding specification in `docs/backlog/`.
 
 ### Phase 2 — UNDERSTAND THE SPEC
 
-**Emit the spec correlation marker (phase=implementation-gate).** Run this literal no-op shell command via `run_shell_command` (run it, do not just print it), with `spec_id` = the located spec filename without `.md` (resolved literal — no `$(...)` substitution, since Warp logs command text as submitted):
+**Emit the spec correlation marker (phase=review).** Run this literal no-op shell command via `run_shell_command` (run it, do not just print it), with `spec_id` = the located spec filename without `.md` (resolved literal — no `$(...)` substitution, since Warp logs command text as submitted):
 
 ```bash
-: SPEC_MARKER v=1 spec_id=2026-06-30-multiquote-limit-5 phase=implementation-gate
+: SPEC_MARKER v=1 spec_id=2026-06-30-multiquote-limit-5 phase=review
 ```
 
 The leading `:` is a no-op (exit 0). It lands in `commands.command` and creates a `blocks` row with `ai_metadata.conversation_id`, binding this session to the spec for the workflow adapter. Emit once, now (session start). See `specify/references/spec-marker.md`.
@@ -95,7 +95,7 @@ Read the spec completely and extract:
 
 **Default: gather git changes (impact-aware).**
 ```bash
-.agents/skills/implementation-gate/scripts/gather-artifacts.sh git-changes
+.agents/skills/review/scripts/gather-artifacts.sh git-changes
 ```
 
 **Script output (JSON):** `scope`, `staged_files`, `unstaged_files` (arrays of modified files).
@@ -251,7 +251,7 @@ bash scripts/check-coverage.sh
 Output a clear verdict:
 
 ```markdown
-## Implementation Gate: [PASS | FAIL]
+## Review: [PASS | FAIL]
 
 **Spec**: `docs/backlog/in-progress/YYYY-MM-DD-slug.md`
 **Scope**: Impact-aware git changes (default) | Full implementation (only if user asked)

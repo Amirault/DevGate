@@ -7,7 +7,7 @@ effort: medium
 # Learn
 
 Run an evidence-based learning pass on a spec that has run through the spec-driven pipeline
-(`specify → implement → implementation-gate`). Extract what actually happened across its
+(`specify → implement → review`). Extract what actually happened across its
 sessions, and report concrete improvement suggestions for the skills/tooling. Read-only — it
 does not edit other skills.
 

@@ -10,7 +10,7 @@ A stable, greppable token emitted automatically by each spec-phase skill so the 
 
 - `v=1` — format version, so the adapter can evolve without breaking old data.
 - `spec_id` — the spec filename without `.md` (e.g. `2026-06-30-multiquote-limit-5`). This is the same id the `trace-capture` skill uses as its topic-id (the spec filename slug), reused verbatim — no hash, no new convention. It is stable across `todo → in-progress → done` moves because the transition scripts preserve the filename.
-- `phase` — `specify | implement | implementation-gate`.
+- `phase` — `specify | implement | review`.
 
 ## Emission (automatic — the human types nothing)
 
@@ -62,7 +62,7 @@ ORDER BY c.start_ts;
 SELECT DISTINCT CASE
   WHEN c.command LIKE '%phase=specify%' THEN 'specify'
   WHEN c.command LIKE '%phase=implement%' THEN 'implement'
-  WHEN c.command LIKE '%phase=implementation-gate%' THEN 'implementation-gate'
+  WHEN c.command LIKE '%phase=review%' THEN 'review'
 END AS phase
 FROM commands c
 WHERE c.command LIKE ': SPEC_MARKER%multiquote-limit-5%';
@@ -88,4 +88,4 @@ Emitted `: SPEC_MARKER v=1 spec_id=smoke-test-spec phase=specify` via `run_shell
 - A `blocks` row was created with `ai_metadata.conversation_id` = the emitting session's conversation id, sharing the command's `start_ts` exactly (1:1).
 - Acceptance query 1 returned that conversation id.
 
-Full 3-conversation confirmation (one `spec_id` across specify → implement → implementation-gate) requires three real sessions; the mechanism is confirmed for one.
+Full 3-conversation confirmation (one `spec_id` across specify → implement → review) requires three real sessions; the mechanism is confirmed for one.

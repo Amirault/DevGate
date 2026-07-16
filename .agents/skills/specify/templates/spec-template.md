@@ -26,7 +26,7 @@ origin_spec:
 <!-- Mark each criterion with [TEST] or [MANUAL]:
      [TEST]   = MUST be implemented as an automated test (business logic, data transformations, API behavior, domain rules)
      [MANUAL] = Manual validation only, no automated test expected (file moves, infra verification, UI checks, deployment state)
-     The implementation-gate will verify every [TEST] criterion has a corresponding test. Missing = blocker. -->
+     The review will verify every [TEST] criterion has a corresponding test. Missing = blocker. -->
 - [TEST] Given {{ context }}, When {{ action }}, Then {{ expected result }}
 - [TEST] Given {{ context }}, When {{ action }}, Then {{ expected result }}
 - [MANUAL] {{ criterion that requires manual validation }}
@@ -112,8 +112,8 @@ origin_spec:
 - Acceptance Criteria and Examples are immutable once a spec is `ready-to-implement`. If an approved criterion or example must change during implementation, do NOT rewrite or delete it — mark the superseded text with `~~strikethrough~~` and a pointer to the new `## Implementation Log` entry that explains the change and who approved it.
 - When the human starts implementation, the implement skill transitions this spec to `implementation-in-progress` and moves it to `docs/backlog/in-progress/`
 - The implement skill checks off each Implementation Plan increment after its build + tests pass
-- When implementation-gate passes, it transitions this spec to `implemented` (stays in `in-progress/`)
-- When the human says DONE, the implementation-gate transitions this spec to `done` and moves it to `docs/backlog/done/`
+- When review passes, it transitions this spec to `implemented` (stays in `in-progress/`)
+- When the human says DONE, the review transitions this spec to `done` and moves it to `docs/backlog/done/`
 
 ## Health Check
 | Dimension | Score | Notes |

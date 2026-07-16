@@ -4,7 +4,7 @@ import type {
   RunSummary,
   SpecBundle,
 } from "../domain/models.js";
-import { computeBundleHeader } from "../domain/bundleHeader.js";
+import { computeBundleHeader, normalizeBundle } from "../domain/bundleHeader.js";
 import { mergeBundles } from "../domain/mergeBundle.js";
 import type { ConversationReader, SpecRead } from "../domain/ports.js";
 
@@ -67,7 +67,12 @@ export function extractSpecBundle(
   specId: string,
   options: ExtractOptions = {}
 ): ExtractResult {
-  const { existingBundle = null, noMerge = false, completeOnly = false } = options;
+  const {
+    existingBundle: rawExistingBundle = null,
+    noMerge = false,
+    completeOnly = false,
+  } = options;
+  const existingBundle = rawExistingBundle ? normalizeBundle(rawExistingBundle) : null;
 
   // Try the fresh read from the external source. If it errors and we have a
   // stored bundle, degrade to stored-only so learn stays a recovery path.

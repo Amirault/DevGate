@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Exports every Warp, Claude Code, or Hermes conversation of one spec across specify/implement/implementation-gate as raw JSONL for a later learning phase.",
+  "description": "Exports every Warp, Claude Code, or Hermes conversation of one spec across specify/implement/review as raw JSONL for a later learning phase.",
   "scripts": {
     "start": "tsx src/cli.ts",
     "test": "vitest run",

@@ -9,7 +9,7 @@ effort: medium
 Execute implementation based on an approved specification. The spec must have status `ready-to-implement` (in `docs/backlog/todo/`) or `implementation-in-progress` (in `docs/backlog/in-progress/`). The spec is the single source of truth — if it's not in the spec, it's not implemented.
 
 ```
-specify → implement (you are here) → implementation-gate → commit
+specify → implement (you are here) → review → commit
 ```
 
 ## Core Principles
@@ -97,10 +97,10 @@ After all increments are checked off:
    > "✅ Implementation complete for [title].
    > [X] files modified, [Y] tests added.
    >
-   > Run `implementation-gate` to validate before review."
+   > Run `review` to validate before review."
 3. **Capture session at close** (non-blocking): run `npx tsx .agents/tools/capture-spec-sessions/src/cli.ts --spec <slug> --out .agents/tools/capture-spec-sessions/spec-sessions` from the dir containing `docs/backlog/`. Report the one-line `wrote …` summary and any `unbindable marker` warning (a decay signal). If the capture fails, log a warning and continue — the handoff is not blocked. Local-only: the `SPEC_MARKER` must be in the local Warp DB; remote (Oz cloud) sessions are not captured.
 
-Do NOT duplicate the implementation-gate's validation — that's its job.
+Do NOT duplicate the review's validation — that's its job.
 
 ## Spec Gap Handling — When to STOP
 

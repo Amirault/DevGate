@@ -1,4 +1,9 @@
-import type { Phase, SeedMatch, SeedStatus } from "../../domain/models.js";
+import {
+  normalizePhase,
+  type Phase,
+  type SeedMatch,
+  type SeedStatus,
+} from "../../domain/models.js";
 import type { ReadableDb } from "../../domain/ports.js";
 
 /**
@@ -17,6 +22,9 @@ import type { ReadableDb } from "../../domain/ports.js";
 const VALID_PHASES = new Set<string>([
   "specify",
   "implement",
+  "review",
+  // Legacy marker label, kept so historical sessions (emitted before the
+  // phase was renamed to "review") still parse. See normalizePhase().
   "implementation-gate",
 ]);
 
@@ -34,7 +42,7 @@ export function parseMarker(
       spec_id = t.slice("spec_id=".length);
     } else if (t.startsWith("phase=")) {
       const v = t.slice("phase=".length);
-      if (VALID_PHASES.has(v)) phase = v as Phase;
+      if (VALID_PHASES.has(v)) phase = normalizePhase(v);
     }
   }
   if (spec_id === null || phase === null) return null;

@@ -5,11 +5,11 @@ It coordinates four phases, each backed by a skill:
 
 - **specify** — define and approve the change before implementation (includes a mandatory `grilling` stress-test pass)
 - **implement** — execute only approved specs, incrementally and with tests
-- **implementation-gate** — validate quality, test coverage, architecture, and readiness before human sign-off
+- **review** — validate quality, test coverage, architecture, and readiness before human sign-off
 - **learn** — evidence-based retrospective on a completed spec, using captured session data
 
 ```
-specify → implement → implementation-gate → (human DONE) → learn
+specify → implement → review → (human DONE) → learn
 ```
 
 ## What this repository contains
@@ -17,7 +17,7 @@ Workflow assets under `.agents/`:
 
 - `skills/specify/` — create/refine specs in `docs/backlog/`, get explicit approval (`ready-to-implement`)
 - `skills/implement/` — execute an approved spec increment by increment
-- `skills/implementation-gate/` — validate readiness for human review
+- `skills/review/` — validate readiness for human review
 - `skills/learn/` — retrospective on a completed spec from captured sessions
 - `skills/grilling/` — relentless interview to stress-test a plan before specifying (mandatory in `specify` Phase 3.5)
 - `skills/test-implementation/` — test patterns and quality standards (FIRST, Given/When/Then, exclusion testing)
@@ -40,7 +40,7 @@ Each skill folder includes `SKILL.md` (behavior and rules) plus helper scripts, 
    - add automated tests for `[TEST]` criteria (see `test-implementation`)
    - capture the session at close (non-blocking)
 
-3. **implementation-gate**
+3. **review**
    - validate implementation against the spec (impact-aware git-changes review)
    - verify `[TEST]` criteria coverage, code quality, blast radius, architecture, build/tests
    - transition to `implemented` when the gate passes

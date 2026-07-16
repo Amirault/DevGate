@@ -9,9 +9,9 @@ function header(specId: string): SpecBundle["header"] {
   return {
     type: "bundle_header",
     spec_id: specId,
-    phases_present: ["specify", "implement", "implementation-gate"],
+    phases_present: ["specify", "implement", "review"],
     phases_missing: [],
-    conversations_per_phase: { specify: 1, implement: 1, "implementation-gate": 1 },
+    conversations_per_phase: { specify: 1, implement: 1, "review": 1 },
     complete: true,
     conversation_ids: ["c1", "c2", "c3"],
     extracted_at: "2026-06-30T12:00:00.000Z",
