@@ -95,6 +95,7 @@ export class HermesConversationReader implements ConversationReader {
           skipped,
           unbindable: [],
           collisions: [],
+          heuristic_bindings: [],
         };
       });
       return readSnapshot.deferred();

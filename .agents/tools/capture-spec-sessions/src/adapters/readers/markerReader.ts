@@ -1,10 +1,38 @@
-import {
-  normalizePhase,
-  type Phase,
-  type SeedMatch,
-  type SeedStatus,
-} from "../../domain/models.js";
+import { normalizePhase, type Phase, type SeedMatch, type SeedStatus } from "../../domain/models.js";
 import type { ReadableDb } from "../../domain/ports.js";
+
+/**
+ * Fallback binding strategy for local orchestrated subagents.
+ *
+ * When a SPEC_MARKER is in `commands` but has no matching `blocks` row (so the
+ * standard ai_metadata JOIN produces no conversation_id), query `ai_queries` for
+ * the most recent AI exchange that completed at or before the marker's start_ts
+ * within a 10-minute look-back window.  The last AI query before the marker is
+ * very likely from the subagent that just ran it (it reads the skill, then emits
+ * the marker as one of its first commands).
+ *
+ * Returns the conversation_id string, or null when no qualifying row is found.
+ */
+function fallbackViaAiQueries(db: ReadableDb, markerTs: string): string | null {
+  interface AiQueryRow {
+    conversation_id: string;
+  }
+  try {
+    const rows = db.all<AiQueryRow>(
+      `SELECT conversation_id
+         FROM ai_queries
+        WHERE start_ts BETWEEN datetime(?, '-600 seconds') AND ?
+        ORDER BY start_ts DESC
+        LIMIT 1`,
+      markerTs,
+      markerTs
+    );
+    return rows[0]?.conversation_id ?? null;
+  } catch {
+    // ai_queries absent in older DB snapshots — degrade gracefully.
+    return null;
+  }
+}
 
 /**
  * Marker selection & binding.
@@ -23,8 +51,8 @@ const VALID_PHASES = new Set<string>([
   "specify",
   "implement",
   "review",
-  // Legacy marker label, kept so historical sessions (emitted before the
-  // phase was renamed to "review") still parse. See normalizePhase().
+  // Legacy alias: the skill was renamed `implementation-gate` → `review`.
+  // Old markers still carry `phase=implementation-gate`; recognized + normalized below.
   "implementation-gate",
 ]);
 
@@ -32,7 +60,53 @@ const VALID_PHASES = new Set<string>([
 export function parseMarker(
   command: string
 ): { spec_id: string; phase: Phase } | null {
-  const tokens = command.trim().split(" ").filter((t) => t.length > 0);
+  // Warp records the marker's `: SPEC_MARKER ...` no-op and the real command that
+  // follows it as ONE multi-line commands.command value. Parse only the first
+  // line — otherwise the next line's tokens bleed into `phase=...`, and a
+  // marker-shaped heredoc/file body line would count as an emission.
+  const firstLine = command.split("\n", 1)[0]!;
+  // Agents sometimes chain the marker (`cd Pricing; : SPEC_MARKER ...`,
+  // `transition-spec.sh ... && : SPEC_MARKER ...`): it still ran, so accept it
+  // as any unquoted `;` / `&&` segment of the first line.
+  for (const segment of unquotedSegments(firstLine)) {
+    const parsed = parseMarkerSegment(segment);
+    if (parsed !== null) return parsed;
+  }
+  return null;
+}
+
+function unquotedSegments(line: string): string[] {
+  const segments: string[] = [];
+  let current = "";
+  let quote: string | null = null;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]!;
+    if (quote !== null) {
+      if (char === quote) quote = null;
+      current += char;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+      current += char;
+      continue;
+    }
+    if (char === ";" || (char === "&" && line[i + 1] === "&")) {
+      segments.push(current);
+      current = "";
+      if (char === "&") i++;
+      continue;
+    }
+    current += char;
+  }
+  segments.push(current);
+  return segments;
+}
+
+function parseMarkerSegment(
+  segment: string
+): { spec_id: string; phase: Phase } | null {
+  const tokens = segment.trim().split(" ").filter((t) => t.length > 0);
   if (tokens[0] !== ":" || tokens[1] !== "SPEC_MARKER") return null;
 
   let spec_id: string | null = null;
@@ -95,8 +169,14 @@ export function findSeeds(db: ReadableDb, specId: string): SeedMatch[] {
     let conversation_id: string | null;
 
     if (distinct.length === 0) {
-      status = "unbindable";
-      conversation_id = null;
+      const fallbackCid = fallbackViaAiQueries(db, start_ts);
+      if (fallbackCid !== null) {
+        status = "bound";
+        conversation_id = fallbackCid;
+      } else {
+        status = "unbindable";
+        conversation_id = null;
+      }
     } else if (distinct.length === 1) {
       status = "bound";
       conversation_id = distinct[0]!;
@@ -116,6 +196,7 @@ export function findSeeds(db: ReadableDb, specId: string): SeedMatch[] {
       marker_command: command,
       start_ts,
       status,
+      ...(status === "bound" && distinct.length === 0 ? { confidence: "heuristic" as const } : {}),
     });
   }
 

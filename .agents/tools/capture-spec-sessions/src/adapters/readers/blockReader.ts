@@ -4,6 +4,7 @@ import { parseBlockAiMetadata } from "../../domain/schemas.js";
 import { stripAnsi } from "../ansi.js";
 
 interface BlockRowRead {
+  id: number;
   start_ts: string | null;
   stylized_command: Buffer | null;
   stylized_output: Buffer | null;
@@ -31,7 +32,7 @@ export function readBlocks(
 
   const placeholders = conversationIds.map(() => "?").join(",");
   const rows = db.all<BlockRowRead>(
-    `SELECT b.start_ts, b.stylized_command, b.stylized_output, b.pwd, b.git_branch,
+    `SELECT b.id, b.start_ts, b.stylized_command, b.stylized_output, b.pwd, b.git_branch,
             b.git_branch_name, b.exit_code, b.did_execute, b.ai_metadata
        FROM blocks b
       WHERE json_extract(b.ai_metadata, '$.conversation_id') IN (${placeholders})
@@ -62,6 +63,7 @@ export function readBlocks(
     }
 
     const eventMeta: Record<string, unknown> = {
+      block_id: row.id,
       output: stripAnsi(row.stylized_output),
       exit_code: row.exit_code,
     };

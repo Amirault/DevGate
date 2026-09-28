@@ -520,6 +520,7 @@ describe("HermesConversationReader", () => {
         skipped: [],
         unbindable: [],
         collisions: [],
+        heuristic_bindings: [],
       }),
     };
 
@@ -586,7 +587,7 @@ describe("HermesConversationReader", () => {
     );
   });
 
-  it("GivenAWarpFixture_WhenTheCliOmitsSource_ShouldKeepWarpAsDefault", () => {
+  it("GivenAWarpFixture_WhenTheCliUsesWarpSource_ShouldWriteAWarpBundle", () => {
     // Given
     const warpPath = path.join(tempDir, "warp.sqlite");
     const fixture = createFixture(warpPath);
@@ -605,7 +606,10 @@ describe("HermesConversationReader", () => {
       const outputDir = path.join(tempDir, "warp-out");
 
       // When
-      const result = runCli(["--spec", SPEC, "--db-path", warpPath, "--out", outputDir], TOOL_DIR);
+      const result = runCli(
+        ["--source", "warp", "--spec", SPEC, "--db-path", warpPath, "--out", outputDir],
+        TOOL_DIR
+      );
 
       // Then
       expect(result.status).toBe(0);

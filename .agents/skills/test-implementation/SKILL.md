@@ -1,6 +1,6 @@
 ---
 name: test-implementation
-description: "Single source of truth for C#/.NET test patterns in this project. Read this skill before writing any [Fact], [Test], or [Theory] — including simple ones. Always invoke when writing, modifying, or reviewing tests, and whenever tdd-cycle, coverage-guard, or review delegates to test patterns. Covers: FIRST principles, Given/When/Then structure with title-case comments (// Given // When // Then), factory methods, AnyX default records with with-expressions, in-memory fakes for use-case tests, TestContainers for secondary adapters, Given_When_Should naming, FluentAssertions lean assertions, [Theory]/[InlineData] for finite inputs (enums), exclusion testing (assert what should NOT be there), and false-positive prevention."
+description: "Single source of truth for C#/.NET test patterns in this project. Read this skill before writing any [Fact], [Test], or [Theory] — including simple ones. Always invoke when writing, modifying, or reviewing tests, and whenever the review skill delegates to test patterns. Covers: FIRST principles, Given/When/Then structure with title-case comments (// Given // When // Then), factory methods, AnyX default records with with-expressions, in-memory fakes for use-case tests, TestContainers for secondary adapters, Given_When_Should naming, FluentAssertions lean assertions, [Theory]/[InlineData] for finite inputs (enums), exclusion testing (assert what should NOT be there), false-positive prevention, and TestCategory tagging with [Description] on Spec tests."
 effort: medium
 ---
 
@@ -18,7 +18,7 @@ Write each test as if it were a sentence in a spec: the name states the rule, th
 - **Independent**: no test relies on another's state or execution order.
 - **Repeatable**: same result every run, any machine, no external state.
 - **Self-validating**: pass or fail — no manual inspection.
-- **Timely**: write the test *before* or *alongside* the production code.
+- **Timely**: write the test _before_ or _alongside_ the production code.
 
 ## Structure: GIVEN / WHEN / THEN
 
@@ -116,15 +116,15 @@ result.DiscountApplied.Should().BeTrue();
 [Fact]
 public async Task GivenOrder_WhenUpdatingPrice_ShouldPersistNewPriceToRepository()
 {
-    // GIVEN
+    // Given
     var order = AnyOrder with { Price = 100m };
     var repository = new InMemoryOrderRepository([order]);
     var updateOrderPrice = CreateUpdateOrderPriceUseCase(repository);
 
-    // WHEN
+    // When
     await updateOrderPrice.UpdatePriceAsync(order.Id, 150m);
 
-    // THEN
+    // Then
     var saved = await repository.GetByIdAsync(order.Id);
     saved.Price.Should().Be(150m);
 }
@@ -153,20 +153,41 @@ TestGetDeployedVersionDetails_Case1()
 ExecuteAsync_ReturnsNotNull_WhenDataExists()
 ```
 
+## Test category
+
+Tag every fixture class with its `TestCategory`: `Spec` (drives a use case through its public entry point with fakes, outer TDD loop), `Unit` (a single class in isolation, inner TDD loop), `Integration` (an adapter against the real technology it wraps), `Contract` (a shared suite run against every adapter of a port, or a check that a partner still honors an assumed contract), `Architecture` (NetArchTest fitness function). Full definitions: the project's `AGENTS.md` → Testing.
+
+```csharp
+[Category(nameof(TestCategory.Spec))]
+public class PayloadNegativeDecimal
+{
+    [Test]
+    [Description(
+        "A negative decimal value in a numeric payload field is accepted when creating a quote"
+    )]
+    public async Task GivenNegativeDecimalPayload_WhenCreatingMultiQuote_ShouldAcceptRequest()
+    {
+        // ...
+    }
+}
+```
+
+`[Description]` is mandatory on `Spec` tests: the business sentence a non-developer would read, independent of the method name — it is what living documentation extracts.
+
 ## Expressiveness over cleverness
 
 Test code should read like prose. Favor clarity over brevity.
 
-- Name variables after what they *represent*, not their type (`confirmedOrder` not `o1`)
+- Name variables after what they _represent_, not their type (`confirmedOrder` not `o1`)
 - Avoid magic values — use named constants or explain intent inline
-- Keep the GIVEN section scannable: a reader should understand the scenario in seconds
+- Keep the Given section scannable: a reader should understand the scenario in seconds
 
 ```csharp
 // ✅ Expressive — reads like a story
-var expiredOrder = new Order { Id = orderId, Total = 200m, Status = OrderStatus.Expired };
+var expiredOrder = AnyOrder with { Status = OrderStatus.Expired };
 
 // ❌ Opaque — requires mental parsing
-var o = new Order { Id = Guid.NewGuid(), Total = 200m, Status = (OrderStatus)3 };
+var o = AnyOrder with { Status = (OrderStatus)3 };
 ```
 
 ## Test the right layer with the right tool
@@ -206,13 +227,13 @@ public class PartnershipSavingAdapterTests : IAsyncLifetime
     [Fact]
     public async Task GivenExistingProduct_WhenAddingPartnership_ShouldPersistInDatabase()
     {
-        // GIVEN
+        // Given
         var productId = (await _dbContext.Products.SingleAsync(p => p.Name == "SEED-PRODUCT")).Id;
 
-        // WHEN
+        // When
         _partnershipSavingAdapter.AddPartnership("PART-001", "Partnership A", productId, "test-user");
 
-        // THEN
+        // Then
         var saved = await _dbContext.Partnerships.SingleOrDefaultAsync(p => p.Code == "PART-001");
         saved.Should().NotBeNull();
     }
@@ -257,7 +278,7 @@ mockRepo
 A test that cannot fail is worthless.
 
 - **Always verify failure**: after updating an existing test, ensure it can both fail and succeed for the corresponding checked behaviour.
-- **Test exclusions, not just inclusions**: if logic filters items, assert that non-matching items are *absent*.
+- **Test exclusions, not just inclusions**: if logic filters items, assert that non-matching items are _absent_.
 - **Finite inputs → exhaustive coverage**: for enums or small value sets, test every value using `[Theory]`/`[InlineData]`. Never write one `[Fact]` per enum value — collapse them into a single theory.
 
 ```csharp
@@ -269,14 +290,14 @@ A test that cannot fail is worthless.
 public async Task GivenContract_WhenApplyingDiscount_ShouldApplyCorrectRate(
     LoyaltyLevel loyalty, decimal expectedPremium)
 {
-    // GIVEN
+    // Given
     var contract = AnyContract with { Loyalty = loyalty };
     var applyDiscount = CreateApplyDiscountUseCase([contract]);
 
-    // WHEN
+    // When
     var result = await applyDiscount.ExecuteAsync(contract.Id);
 
-    // THEN
+    // Then
     result.DiscountedPremium.Should().Be(expectedPremium);
 }
 
@@ -294,6 +315,7 @@ result.Should().NotContain(p => p.Name == "HOME_INSURANCE");
 // ❌ Only tests the happy path — a bug returning everything would still pass
 result.Should().Contain(p => p.Name == "AUTO_INSURANCE");
 ```
+
 ## Test ordering — newspaper metaphor
 
 Order tests within a file like a newspaper article: **headline first, details later**.

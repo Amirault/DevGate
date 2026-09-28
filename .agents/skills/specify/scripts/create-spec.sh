@@ -44,7 +44,7 @@ fi
 mkdir -p "$SPEC_DIR"
 
 DATE=$(date +%Y-%m-%d)
-TIMESTAMP=$(date +"%Y-%m-%d %H:%M")
+TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 FILENAME="$SPEC_DIR/$DATE-$SLUG.md"
 
 if [ -f "$FILENAME" ]; then
@@ -52,5 +52,5 @@ if [ -f "$FILENAME" ]; then
     exit 1
 fi
 
-sed "s/{{ YYYY-MM-DD HH:MM }}/$TIMESTAMP/" "$TEMPLATE" > "$FILENAME"
+sed "s/{{ YYYY-MM-DDTHH:MM:SSZ }}/$TIMESTAMP/" "$TEMPLATE" > "$FILENAME"
 echo "✅ Spec created: $FILENAME"

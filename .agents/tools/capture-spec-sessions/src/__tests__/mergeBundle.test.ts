@@ -107,6 +107,134 @@ describe("§9.16 mergeBundles decay-safe merge", () => {
     });
   });
 
+  it("Given a stored event and a fresh re-read with a later mutable timestamp, When merged, Then one event survives with the earlier timestamp", () => {
+    // Given
+    const storedEvent = event(
+      "c1",
+      "review",
+      "2026-07-14 09:00:00.000000",
+      "same task event",
+      1
+    );
+    storedEvent.role = "assistant";
+    storedEvent.kind = "agent_message";
+    storedEvent.meta = { field_path: "messages.agent_output.text", repeat: 1 };
+    const freshEvent = event(
+      "c1",
+      "review",
+      "2026-07-14 10:00:00.000000",
+      "same task event",
+      1
+    );
+    freshEvent.role = "assistant";
+    freshEvent.kind = "agent_message";
+    freshEvent.meta = { field_path: "messages.agent_output.text", repeat: 2 };
+    const stored = bundle([storedEvent]);
+    const fresh = bundle([freshEvent]);
+
+    // When
+    const merged = mergeBundles(stored, fresh);
+
+    // Then
+    expect(merged.events).toHaveLength(1);
+    expect(merged.events[0]!.ts).toBe("2026-07-14 09:00:00.000000");
+    expect(merged.events[0]!.meta.repeat).toBe(2);
+  });
+
+  it("Given an evicted stored query and a distinct fresh query with identical content, When merged, Then stable timestamps keep both events", () => {
+    // Given
+    const storedEvent = event(
+      "c1",
+      "review",
+      "2026-07-14 09:00:00.000000",
+      "continue",
+      1
+    );
+    storedEvent.meta = { cwd: "/repo", model: "model-a" };
+    const freshEvent = event(
+      "c1",
+      "review",
+      "2026-07-14 10:00:00.000000",
+      "continue",
+      1
+    );
+    freshEvent.meta = { cwd: "/repo", model: "model-a" };
+
+    // When
+    const merged = mergeBundles(bundle([storedEvent]), bundle([freshEvent]));
+
+    // Then
+    expect(merged.events).toHaveLength(2);
+    expect(merged.events.map((event) => event.ts)).toEqual([
+      "2026-07-14 09:00:00.000000",
+      "2026-07-14 10:00:00.000000",
+    ]);
+  });
+
+  it("Given a legacy stored task event and a fresh identified re-read with a later timestamp, When merged, Then compatibility matching preserves one earliest event", () => {
+    // Given
+    const storedEvent = event(
+      "c1",
+      "review",
+      "2026-07-14 09:00:00.000000",
+      "same task event",
+      1
+    );
+    storedEvent.role = "assistant";
+    storedEvent.kind = "agent_message";
+    storedEvent.meta = { field_path: "messages.agent_output.text" };
+    const freshEvent = event(
+      "c1",
+      "review",
+      "2026-07-14 10:00:00.000000",
+      "same task event",
+      1
+    );
+    freshEvent.role = "assistant";
+    freshEvent.kind = "agent_message";
+    freshEvent.meta = {
+      field_path: "messages.agent_output.text",
+      task_id: "task-1",
+      task_event_index: 4,
+    };
+
+    // When
+    const merged = mergeBundles(bundle([storedEvent]), bundle([freshEvent]));
+
+    // Then
+    expect(merged.events).toHaveLength(1);
+    expect(merged.events[0]!.ts).toBe("2026-07-14 09:00:00.000000");
+    expect(merged.events[0]!.meta.task_id).toBe("task-1");
+    expect(merged.events[0]!.meta.task_event_index).toBe(4);
+  });
+
+  it("Given two same-content events with distinct stable surrogates, When merged, Then both survive", () => {
+    // Given
+    const first = event(
+      "c1",
+      "review",
+      "2026-07-14 09:00:00.000000",
+      "continue",
+      1
+    );
+    first.meta = { message_id: 41, message_event_index: 0 };
+    const second = event(
+      "c1",
+      "review",
+      "2026-07-14 09:01:00.000000",
+      "continue",
+      2
+    );
+    second.meta = { message_id: 42, message_event_index: 0 };
+
+    // When
+    const merged = mergeBundles(bundle([first]), bundle([second]));
+
+    // Then
+    expect(merged.events).toHaveLength(2);
+    expect(merged.events.map((e) => e.meta.message_id)).toEqual([41, 42]);
+  });
+
   it("Given a phase bindable fresh but some older events evicted from the live ring buffer, When merged, Then the evicted events are recovered from the stored bundle (fresh primary, stored fills gaps)", () => {
     // Given — specify captured at close with 3 prompts; since then 2 were
     // evicted from the live ring buffer, so the fresh read only has 1.
@@ -207,17 +335,36 @@ describe("§9.16 mergeBundles decay-safe merge", () => {
   });
 });
 
-describe("§9.18 normalizeBundle legacy-phase normalization", () => {
-  it("Given a stored bundle whose events carry the legacy `implementation-gate` phase, When normalized, Then events become `review` and the header is recomputed", () => {
-    // Given — a bundle captured before the rename: events tagged implementation-gate
-    const legacy = bundle([
-      event("c1", "implementation-gate" as unknown as Phase, "2026-07-14 11:00:00.000000", "gate it", 1),
-    ]);
+describe("§9.18 normalizeBundle — legacy `implementation-gate` → `review`", () => {
+  it("Given a stored bundle captured before the rename (events + header carry `implementation-gate`), When normalized, Then every phase becomes `review` and the header is recomputed", () => {
+    // Given — a bundle captured before the skill rename. Constructed by hand
+    // (not computeBundleHeader) to mimic an old on-disk bundle: events and
+    // header both carry the legacy `implementation-gate` phase value.
+    const legacy: SpecBundle = {
+      header: {
+        type: "bundle_header",
+        spec_id: SPEC,
+        phases_present: ["implementation-gate" as unknown as Phase],
+        phases_missing: ["specify" as unknown as Phase, "implement" as unknown as Phase],
+        conversations_per_phase: {
+          specify: 0,
+          implement: 0,
+          "implementation-gate": 1,
+        } as unknown as Record<Phase, number>,
+        complete: false,
+        conversation_ids: ["c1"],
+        extracted_at: "2026-07-14T00:00:00.000Z",
+        source: "warp",
+      },
+      events: [
+        event("c1", "implementation-gate" as unknown as Phase, "2026-07-14 09:00:00.000000", "gate it", 1),
+      ],
+    };
 
     // When
     const normalized = normalizeBundle(legacy);
 
-    // Then — legacy phase mapped to review, header recomputed consistently
+    // Then — legacy phase normalized to `review`; header recomputed from events
     expect(normalized.events.map((e) => e.phase)).toEqual(["review"]);
     expect(normalized.header.phases_present).toEqual(["review"]);
     expect(normalized.header.phases_missing).toEqual(["specify", "implement"]);
@@ -226,19 +373,21 @@ describe("§9.18 normalizeBundle legacy-phase normalization", () => {
       implement: 0,
       review: 1,
     });
+    expect(normalized.header.complete).toBe(false);
+    // extracted_at preserved across normalization
+    expect(normalized.header.extracted_at).toBe("2026-07-14T00:00:00.000Z");
   });
 
-  it("Given a bundle that already uses only canonical phases, When normalized, Then it is returned unchanged (fast path)", () => {
-    // Given — canonical bundle, no legacy labels
-    const canonical = bundle([
-      event("c1", "specify", "2026-07-14 09:00:00.000000", "spec it", 1),
-      event("c2", "review", "2026-07-14 11:00:00.000000", "gate it", 2),
+  it("Given a bundle that already uses canonical `review`, When normalized, Then it is returned unchanged (fast path)", () => {
+    // Given — a modern bundle with no legacy phase values
+    const modern = bundle([
+      event("c1", "review", "2026-07-14 09:00:00.000000", "gate it", 1),
     ]);
 
     // When
-    const normalized = normalizeBundle(canonical);
+    const normalized = normalizeBundle(modern);
 
-    // Then — same reference (fast path, no recompute)
-    expect(normalized).toBe(canonical);
+    // Then — same reference (no copy), nothing to normalize
+    expect(normalized).toBe(modern);
   });
 });

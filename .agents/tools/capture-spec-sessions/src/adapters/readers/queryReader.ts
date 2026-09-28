@@ -55,6 +55,7 @@ export function readQueries(
     const meta: Record<string, unknown> = {
       cwd: row.working_directory,
       model: row.model_id,
+      exchange_id: row.exchange_id,
     };
     if (row.git_branch) meta.git_branch = row.git_branch;
     drafts.push({

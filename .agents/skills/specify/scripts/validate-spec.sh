@@ -5,6 +5,7 @@
 #                 Used by transition-spec.sh at approval (specifying -> ready-to-implement),
 #                 so `ready-to-implement` is a trustworthy validation stamp for the implement skill.
 # Exit 0 = valid, Exit 1 = invalid (with details on stderr)
+# shellcheck disable=SC2250,SC2292,SC2312  # style/note-level rules; legacy patterns kept verbatim; error/warning-level rules stay active
 
 SPEC_FILE="$1"
 REQUIRE_PLAN=false
@@ -68,7 +69,7 @@ ORIGIN_SPEC=$(echo "$CONTENT" | grep -m1 "^origin_spec:" | sed 's/^origin_spec:[
 if [ -n "$ORIGIN_SPEC" ]; then
     BACKLOG_ROOT=$(dirname "$(dirname "$SPEC_FILE")")
     FOUND=false
-    for subdir in todo in-progress done rejected; do
+    for subdir in todo in-progress "done" rejected; do
         if [ -f "$BACKLOG_ROOT/$subdir/$ORIGIN_SPEC" ]; then
             FOUND=true
             break
@@ -153,6 +154,14 @@ if [ "$REQUIRE_PLAN" = "true" ]; then
         fi
         if [ "$VALIDATION_COUNT" -lt "$INCREMENT_COUNT" ]; then
             ERRORS+=("Implementation Plan: each increment needs a filled **Validation** line")
+        fi
+        REFACTORING_COUNT=$(echo "$PLAN_SECTION" | grep -cE '^[[:space:]]*- \[[ x]\] \*\*Refactoring\*\*')
+        if [ "$REFACTORING_COUNT" -lt "$INCREMENT_COUNT" ]; then
+            ERRORS+=("Implementation Plan: each increment needs a '- [ ] **Refactoring**' sub-checkbox (subagent refactoring pass — checked by implement after the pass)")
+        fi
+        PRECHECKED_REFACTORING=$(echo "$PLAN_SECTION" | grep -cE '^[[:space:]]*- \[x\] \*\*Refactoring\*\*')
+        if [ "$PRECHECKED_REFACTORING" -gt 0 ]; then
+            ERRORS+=("Implementation Plan: $PRECHECKED_REFACTORING '**Refactoring**' sub-checkbox(es) already checked — specify leaves them unchecked; implement checks them only after the subagent pass")
         fi
     fi
 

@@ -2,6 +2,7 @@
 # gather-artifacts.sh — Collects implementation artifacts for review
 # Usage: ./gather-artifacts.sh [git-changes|full-implementation] [spec-file]
 # Output: JSON with file paths and git info
+# shellcheck disable=SC2250,SC2292,SC2312  # style/note-level rules; legacy patterns kept verbatim; error/warning-level rules stay active
 
 SCOPE="$1"
 SPEC_FILE="$2"

@@ -8,7 +8,7 @@ each conversation's original message order, ready for a later learning phase
 
 Supported sources:
 
-- `warp` (default): Warp's local SQLite database.
+- `warp`: Warp's local SQLite database.
 - `claude-code`: Claude Code JSONL transcripts under `~/.claude/projects`.
 - `hermes`: Hermes' canonical `<HERMES_HOME>/state.db` SQLite store.
 
@@ -23,19 +23,15 @@ Given a spec slug (the markdown filename under `docs/backlog/`, e.g.
 `2026-06-03-add-smoke-test-multi-quote-akur8`), the adapter:
 
 1. **Finds correlation markers** — `: SPEC_MARKER v=1 spec_id=<slug> phase=<phase>`
-   shell no-ops emitted by phase skills — and binds each to a conversation:
+   shell no-ops emitted by phase skills — and binds each to a conversation.
+   `phase` is `specify`, `implement`, or `review`; legacy `implementation-gate`
+   markers are recognized and normalized to `review`:
    - Warp: marker command in `commands.command`, conversation id via the matching
      `blocks.start_ts` row.
    - Claude Code: marker command in a `Bash` `tool_use` block inside the session
      JSONL transcript.
    - Hermes: an exact marker line in an assistant `terminal` or
      `run_shell_command` tool call stored in `messages.tool_calls`.
-
-   > **Phase rename (backward-compatible).** The third phase was renamed from
-   > `implementation-gate` to `review`. Markers carrying the legacy
-   > `phase=implementation-gate` label still parse (normalized to `review`),
-   > and previously-captured bundles with the old label are normalized on merge
-   > — historical sessions need no manual migration.
 2. **Reads every event** for those conversations from the selected source:
    - Claude Code `type: "user"` entries → prompts and tool results
      (`kind: "query"` / `kind: "tool_result"`)
@@ -85,9 +81,9 @@ SQLite backup or `VACUUM INTO` when a copied fixture is required.
 - Claude Code installed and used (for `--source claude-code`)
 - Hermes installed and used (for `--source hermes`)
 
-The DB is expected at:
+For `--source warp`, the default Warp DB path is:
 
-```
+```text
 ~/Library/Group Containers/2BBY89MBSN.dev.warp/Library/Application Support/dev.warp.Warp-Stable/warp.sqlite
 ```
 
@@ -100,8 +96,23 @@ npm install
 
 ## Usage
 
-Run from the directory that contains `docs/backlog/` (e.g. the `Pricing/` root),
-so `--list` and the default backlog root resolve correctly.
+Phase skills and `learn` go through the `capture.sh` wrapper, which works from any
+cwd (repo root, any subdirectory, a git worktree):
+
+```bash
+.agents/tools/capture-spec-sessions/capture.sh --spec <slug> --source claude-code
+.agents/tools/capture-spec-sessions/capture.sh --list
+```
+
+It runs the CLI from the project root, installs the npm dependencies on first
+use (a fresh worktree has no `node_modules`), resolves node through `mise` when
+available, and defaults `--out` to the **main checkout's** `spec-sessions/` store,
+so a capture made in a disposable worktree survives the worktree's removal. Every
+other flag is passed through; an explicit `--out` wins.
+
+The raw CLI below must be run from the directory that contains `docs/backlog/`
+(e.g. the project root), so `--list` and the default backlog root resolve
+correctly.
 
 ### List available spec slugs
 
@@ -111,16 +122,16 @@ Scans `<cwd>/docs/backlog/{todo,in-progress,done}/*.md`:
 npx tsx .agents/tools/capture-spec-sessions/src/cli.ts --list
 ```
 
-### Extract one spec from Warp (default)
+### Extract one spec from Warp
 
 ```bash
-npx tsx .agents/tools/capture-spec-sessions/src/cli.ts --spec <slug>
+npx tsx .agents/tools/capture-spec-sessions/src/cli.ts --spec <slug> --source warp
 # custom output directory
-npx tsx .agents/tools/capture-spec-sessions/src/cli.ts --spec <slug> --out /tmp/bundles
+npx tsx .agents/tools/capture-spec-sessions/src/cli.ts --spec <slug> --source warp --out /tmp/bundles
 # only emit complete bundles (all 3 phases present)
-npx tsx .agents/tools/capture-spec-sessions/src/cli.ts --spec <slug> --complete-only
+npx tsx .agents/tools/capture-spec-sessions/src/cli.ts --spec <slug> --source warp --complete-only
 # point at a specific DB (debugging)
-npx tsx .agents/tools/capture-spec-sessions/src/cli.ts --spec <slug> --db-path /path/to/warp.sqlite
+npx tsx .agents/tools/capture-spec-sessions/src/cli.ts --spec <slug> --source warp --db-path /path/to/warp.sqlite
 ```
 
 ### Extract one spec from Claude Code
@@ -164,7 +175,7 @@ scanned automatically.
 
 Output is written to `out/<spec>.jsonl` (relative to cwd), with a one-line summary:
 
-```
+```text
 wrote out/2026-06-03-add-smoke-test-multi-quote-akur8.jsonl (199 events, 1 conversations, complete=false)
 ```
 
@@ -172,7 +183,7 @@ If a marker can't bind to a conversation (see **Marker binding decays** below) o
 binds to more than one, the run still succeeds but each anomaly is reported on
 its own line (never as a bare count):
 
-```
+```text
 warnings:
 unbindable marker: phase=implement start_ts=2026-06-30 11:00:00.000000
 ```
@@ -180,7 +191,7 @@ unbindable marker: phase=implement start_ts=2026-06-30 11:00:00.000000
 If **zero** conversations bind for the spec, nothing is written (no
 header-only file) and the run exits non-zero:
 
-```
+```text
 no conversations bound for spec "<slug>" — nothing written.
 unbindable marker: phase=implement start_ts=2026-06-30 11:00:00.000000
 a marker was found but its binding block is gone — Warp can evict blocks rows over time; extract soon after finishing a spec, before the binding decays.
@@ -189,27 +200,27 @@ run --list to check available specs.
 
 ### Exit codes
 
-| Code | Meaning |
-|------|---------|
-| `0` | Bundle written. |
-| `1` | Nothing written — zero conversations bound, or `--complete-only` withheld an incomplete bundle. |
-| `2` | Usage error (bad/missing flag). |
+| Code | Meaning                                                                                         |
+| ---- | ----------------------------------------------------------------------------------------------- |
+| `0`  | Bundle written.                                                                                 |
+| `1`  | Nothing written — zero conversations bound, or `--complete-only` withheld an incomplete bundle. |
+| `2`  | Usage error (bad/missing flag).                                                                 |
 
 ### CLI flags
 
-| Flag | Description |
-|------|-------------|
-| `--spec <slug>` | Spec to extract (required unless `--list`). |
-| `--list` | Print available spec slugs and exit. |
-| `--complete-only` | Write nothing if the spec is missing any phase. |
-| `--no-merge` | Replace the existing bundle instead of merging (default: merge decay-safe). |
-| `--out <dir>` | Output directory (default `out`). |
-| `--source <source>` | Conversation source: `warp` (default), `claude-code`, or `hermes`. |
-| `--db-path <path>` | Override the live Warp DB path (`--source warp`). |
-| `--claude-root <dir>` | Override Claude Code transcript root (`--source claude-code`, default `~/.claude/projects`). |
-| `--hermes-db-path <path>` | Override Hermes `state.db` (`--source hermes`, default `$HERMES_HOME/state.db`). |
-| `--backlog-root <dir>` | Root containing `docs/backlog/` (default cwd). |
-| `-h, --help` | Print usage. |
+| Flag                      | Description                                                                                                                |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `--spec <slug>`           | Spec to extract (required unless `--list`).                                                                                |
+| `--list`                  | Print available spec slugs and exit.                                                                                       |
+| `--complete-only`         | Write nothing if the spec is missing any phase.                                                                            |
+| `--no-merge`              | Replace the existing bundle instead of merging (default: merge decay-safe); required when intentionally switching sources. |
+| `--out <dir>`             | Output directory (default `out`).                                                                                          |
+| `--source <source>`       | Conversation source: `warp`, `claude-code`, or `hermes`; required with `--spec`.                                           |
+| `--db-path <path>`        | Override the live Warp DB path (`--source warp`).                                                                          |
+| `--claude-root <dir>`     | Override Claude Code transcript root (`--source claude-code`, default `~/.claude/projects`).                               |
+| `--hermes-db-path <path>` | Override Hermes `state.db` (`--source hermes`, default `$HERMES_HOME/state.db`).                                           |
+| `--backlog-root <dir>`    | Root containing `docs/backlog/` (default cwd).                                                                             |
+| `-h, --help`              | Print usage.                                                                                                               |
 
 ---
 
@@ -222,13 +233,38 @@ a trailing newline.
 **Line 1 — bundle header:**
 
 ```json
-{"type":"bundle_header","spec_id":"...","phases_present":["specify","implement"],"phases_missing":["review"],"conversations_per_phase":{"specify":1,"implement":1,"review":0},"complete":false,"conversation_ids":["..."],"extracted_at":"...","source":"warp"}
+{
+  "type": "bundle_header",
+  "spec_id": "...",
+  "phases_present": ["specify", "implement"],
+  "phases_missing": ["review"],
+  "conversations_per_phase": { "specify": 1, "implement": 1, "review": 0 },
+  "complete": false,
+  "conversation_ids": ["..."],
+  "extracted_at": "...",
+  "source": "warp"
+}
 ```
 
 **Every subsequent line — one event:**
 
 ```json
-{"spec_id":"...","phase":"implement","conversation_id":"...","seq":1,"ts":"2026-06-30 10:10:00.000000","role":"user","kind":"query","content":"implement it","meta":{"cwd":"/...","model":"...","git_branch":"main"}}
+{
+  "spec_id": "...",
+  "phase": "implement",
+  "conversation_id": "...",
+  "seq": 1,
+  "ts": "2026-06-30 10:10:00.000000",
+  "role": "user",
+  "kind": "query",
+  "content": "implement it",
+  "meta": {
+    "cwd": "/...",
+    "model": "...",
+    "git_branch": "main",
+    "exchange_id": "..."
+  }
+}
 ```
 
 Fields:
@@ -238,10 +274,11 @@ Fields:
 - `role` — `user` | `assistant` | `tool`.
 - `kind` — `query` | `agent_message` | `command` | `tool_call` | `tool_result`.
 - `meta` — kind-specific: `field_path`, `exit_code`, `git_branch`, `cwd`, `model`,
-  `subagent_task_id`, `repeat`, `truncated`, `original_len`, `confidence`,
-  `message_kind`, `tool`, `tool_call_id`, `fields`, `skills`, `merged_count`,
-  `message_id`, `message_event_index`, `active`, `compacted`, `session_source`
-  (see Schema-aware field paths below).
+  `block_id`, `exchange_id`, `task_id`, `task_event_index`, `subagent_task_id`,
+  `repeat`, `truncated`, `original_len`, `confidence`, `message_kind`, `tool`,
+  `tool_call_id`, `fields`, `skills`, `merged_count`, `message_id`,
+  `message_event_index`, `active`, `compacted`, `session_source` (see Schema-aware
+  field paths below).
 
 ### Compaction (`agent_message` events)
 
@@ -258,7 +295,7 @@ Walked protobuf nodes are compacted to reduce noise without losing signal:
   `Message` occurrences that each set one leaf field. These are grouped by
   shared `tool_call_id` into one event carrying a `fields` map (relative
   field path -> value) plus `meta.tool_call_id`. When the same relative path
-  recurs with a *different* value — e.g. `diffs.file_path` for each file in a
+  recurs with a _different_ value — e.g. `diffs.file_path` for each file in a
   multi-file `apply_file_diffs` call — the value becomes an array instead of
   being overwritten, so sibling repeated-field items are never silently
   dropped. `updated_skills_context` fan-out (one leaf per skill field) is
@@ -268,6 +305,11 @@ Walked protobuf nodes are compacted to reduce noise without losing signal:
   chunk) are merged onto their final value with `meta.merged_count`.
   `agent_reasoning`, `user_query`, `update_todos`, and
   `messages_received_from_agents` are never grouped or merged away.
+- **Dedupe static context across task rows** (`envelopeDedupe.ts`): per
+  conversation, keep the first identical `updated_skills_context` set and
+  `context.project_rules` payload. Later copies are removed; if a tool event also
+  carries signal fields, only the repeated envelope fields are stripped. Changed
+  rule content and all signal events remain intact.
 
 If a task blob's walk hit malformed bytes, its events carry
 `meta.confidence: "heuristic"`.
@@ -305,7 +347,7 @@ rows, ~20.9k nodes) named ~83% of nodes at the pinned rev.
 
 Ports & adapters (clean architecture):
 
-```
+```text
 src/
   cli.ts                          — entry point, arg parsing (node:util parseArgs)
   formatRunReport.ts              — pure CLI diagnostics: success/anomaly lines, exit code
@@ -328,6 +370,7 @@ src/
     compact.ts                     — noise-reduction pass over walked nodes
     schemaOverlay.ts               — schema-aware name overlay (message_kind/tool)
     collapseDeltas.ts              — collapses streaming tool_call/tool_call_result field-deltas
+    envelopeDedupe.ts              — removes repeated skill/rule envelopes across task rows
     protoSchema.ts                 — @generated field-number → name lookup (no runtime proto dep)
     ansi.ts                        — ANSI escape stripping
     readers/
@@ -365,8 +408,9 @@ your live DB to validate end-to-end.
   morning was fully unbindable the same night). Extract soon after finishing a
   spec — don't rely on being able to extract it days later.
   **Mitigation (capture-at-close + decay-safe merge):** the phase skills
-  (`specify`, `implement`, `review`) now capture at close into
-  `spec-sessions/<slug>.jsonl` (this folder, gitignored). A later capture merges
+  (`specify`, `implement`, `review`) now capture at close
+  into `spec-sessions/<slug>.jsonl` (this folder of the main checkout, gitignored
+  — `capture.sh` targets it even from a worktree). A later capture merges
   fresh + stored decay-safe — fresh events are primary, stored events fill gaps
   left by marker decay or ring-buffer eviction — so a phase captured at close is
   recoverable even after its live binding is gone. `learn` always runs the tool
@@ -386,7 +430,9 @@ your live DB to validate end-to-end.
   bump Warp.
 - Warp default DB discovery is macOS-specific.
 - Claude Code extraction depends on the same `SPEC_MARKER` command being present
-  in the transcript. A session that only mentions the spec slug but never ran the
+  in the transcript. A marker chained on the command's first line
+  (`cd project; : SPEC_MARKER …`, `script && : SPEC_MARKER …`) still binds, as a
+  recovery path; quoted text and later lines (heredoc bodies) never do. A session that only mentions the spec slug but never ran the
   marker is not bound, by design, to avoid heuristic grouping.
 - Hermes binds only exact canonical marker lines executed by an assistant shell
   tool. It intentionally ignores prose, tool results, `echo` commands, and

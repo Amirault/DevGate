@@ -54,6 +54,7 @@ describe("§9.5 queryReader & blockReader", () => {
       cwd: "/repo",
       model: "claude-x",
       git_branch: "feature-x",
+      exchange_id: `${CID}-ex`,
     });
     db.close();
   });
@@ -113,6 +114,7 @@ describe("§9.5 queryReader & blockReader", () => {
     });
     expect(drafts[0]!.content).toBe("git pull origin main");
     expect(drafts[0]!.meta.output).toBe("Already up to date.\nDone");
+    expect(drafts[0]!.meta.block_id).toBe(1);
     db.close();
   });
 

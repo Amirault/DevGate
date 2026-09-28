@@ -245,4 +245,25 @@ describe("ClaudeCodeTranscriptReader", () => {
     expect(summary.conversations).toBe(0);
     expect(summary.events).toBe(0);
   });
+  it("Given a bound session interleaved with timestamp-less metadata records, When extracted, Then only message records lacking a timestamp are reported as skipped", () => {
+    // Given — Claude Code appends session metadata (custom-title, last-prompt,
+    // file-history-snapshot, …) without a timestamp; they are not events.
+    const sessionId = "session-metadata";
+    writeTranscript(claudeRoot, sessionId, [
+      assistantEntry(sessionId, "a1", "2026-06-30T09:00:00.000Z", [
+        { type: "tool_use", id: "toolu_spec", name: "Bash", input: { command: markerCommand("specify") } },
+      ]),
+      { type: "custom-title", sessionId, customTitle: "Specify multiquote limit" },
+      { type: "last-prompt", sessionId, lastPrompt: "/specify multiquote" },
+      { type: "file-history-snapshot", messageId: "m1", snapshot: {}, isSnapshotUpdate: false },
+      { ...userEntry(sessionId, "u2", "unused", "a prompt with no timestamp"), timestamp: undefined },
+    ]);
+
+    // When
+    const { summary } = extractSpecBundle(new ClaudeCodeTranscriptReader({ rootDir: claudeRoot }), SPEC);
+
+    // Then
+    expect(summary.conversations).toBe(1);
+    expect(summary.skipped_rows.map((row) => row.reason)).toEqual(["missing timestamp"]);
+  });
 });

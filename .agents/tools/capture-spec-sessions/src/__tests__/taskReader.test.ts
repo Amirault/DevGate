@@ -9,6 +9,81 @@ import { encodeString, encodeMessage, encodeVarint, encodeTag } from "./fixtures
 
 const CID = "c-1";
 
+function contextEnvelopeTask(
+  turn: number,
+  ruleContent = "# Shared project rules\nKeep tests focused."
+): Buffer {
+  const ruleFile = Buffer.concat([
+    encodeString(1, "/repo/AGENTS.md"),
+    encodeString(2, ruleContent),
+  ]);
+  const projectRules = encodeMessage(2, ruleFile);
+  const skills = Buffer.concat([
+    encodeMessage(
+      1,
+      Buffer.concat([encodeString(1, "skills/plan/SKILL.md"), encodeString(2, "plan")])
+    ),
+    encodeMessage(
+      1,
+      Buffer.concat([encodeString(1, "skills/review/SKILL.md"), encodeString(2, "review")])
+    ),
+  ]);
+  const inputContext = Buffer.concat([
+    encodeMessage(10, projectRules),
+    encodeMessage(12, skills),
+  ]);
+  const envelope = encodeMessage(
+    5,
+    encodeMessage(
+      5,
+      Buffer.concat([encodeString(1, `context-${turn}`), encodeMessage(11, inputContext)])
+    )
+  );
+  const mixedEnvelope = encodeMessage(
+    5,
+    encodeMessage(
+      5,
+      Buffer.concat([
+        encodeString(1, `mixed-${turn}`),
+        encodeMessage(2, encodeString(1, `output ${turn}`)),
+        encodeMessage(11, inputContext),
+      ])
+    )
+  );
+  const userQuery = encodeMessage(5, encodeMessage(2, encodeString(1, `query ${turn}`)));
+  const agentReasoning = encodeMessage(
+    5,
+    encodeMessage(15, encodeString(1, `reasoning ${turn}`))
+  );
+  const updateTodos = encodeMessage(
+    5,
+    encodeMessage(10, encodeMessage(1, encodeMessage(1, encodeString(2, `todo ${turn}`))))
+  );
+  const receivedMessage = encodeMessage(
+    5,
+    encodeMessage(24, encodeMessage(1, encodeString(4, `agent update ${turn}`)))
+  );
+  const toolCall = encodeMessage(
+    5,
+    encodeMessage(
+      4,
+      Buffer.concat([
+        encodeString(1, `command-${turn}`),
+        encodeMessage(2, encodeString(1, `echo turn-${turn}`)),
+      ])
+    )
+  );
+  return Buffer.concat([
+    envelope,
+    mixedEnvelope,
+    userQuery,
+    agentReasoning,
+    updateTodos,
+    receivedMessage,
+    toolCall,
+  ]);
+}
+
 describe("§9.6 taskReader", () => {
   let tmp: string;
   let dbPath: string;
@@ -54,7 +129,111 @@ describe("§9.6 taskReader", () => {
     // field 1 = Task.id, field 3 = Task.dependencies, field 6 = Task.summary
     expect(drafts[0]!.meta.field_path).toBe("id");
     expect(drafts[1]!.meta.field_path).toBe("dependencies.parent_task_id");
+    expect(drafts.map((draft) => draft.meta.task_id)).toEqual([
+      `${CID}-task`,
+      `${CID}-task`,
+      `${CID}-task`,
+    ]);
+    expect(drafts.map((draft) => draft.meta.task_event_index)).toEqual([0, 1, 2]);
     expect(drafts[0]!.meta).not.toHaveProperty("confidence");
+    db.close();
+  });
+
+  it("Given repeated static context envelopes across task rows, When read, Then the envelope appears once and every signal event survives", () => {
+    // Given
+    const db = createFixture(dbPath);
+    for (let turn = 1; turn <= 3; turn++) {
+      seedTask(db, {
+        conversation_id: CID,
+        task_id: `task-${turn}`,
+        task: contextEnvelopeTask(turn),
+        last_modified_at: `2026-06-30 12:0${turn}:00.000000`,
+      });
+    }
+
+    // When
+    const { drafts } = readTasks(wrapReadableDb(db), [CID]);
+
+    // Then
+    expect(drafts.filter((draft) => Array.isArray(draft.meta.skills))).toHaveLength(1);
+    expect(
+      drafts.filter((draft) =>
+        Object.keys((draft.meta.fields as Record<string, unknown> | undefined) ?? {}).some(
+          (field) => field.startsWith("context.project_rules.")
+        )
+      )
+    ).toHaveLength(1);
+    for (const messageKind of [
+      "user_query",
+      "agent_reasoning",
+      "update_todos",
+      "messages_received_from_agents",
+    ]) {
+      expect(drafts.filter((draft) => draft.meta.message_kind === messageKind)).toHaveLength(3);
+    }
+    expect(drafts).toHaveLength(19);
+    expect(
+      drafts.filter(
+        (draft) =>
+          draft.meta.message_kind === "tool_call" && draft.meta.tool === "run_shell_command"
+      )
+    ).toHaveLength(3);
+    const commandOutputs = drafts.filter((draft) => {
+      const fields = draft.meta.fields as Record<string, string> | undefined;
+      return fields?.["run_shell_command.output"] !== undefined;
+    });
+    expect(commandOutputs).toHaveLength(3);
+    expect(
+      commandOutputs.map(
+        (draft) =>
+          (draft.meta.fields as Record<string, string>)["run_shell_command.output"]
+      )
+    ).toEqual(["output 1", "output 2", "output 3"]);
+    expect(drafts.map((draft) => draft.content)).toEqual(
+      expect.arrayContaining([
+        "query 1",
+        "query 2",
+        "query 3",
+        "reasoning 1",
+        "reasoning 2",
+        "reasoning 3",
+        "todo 1",
+        "todo 2",
+        "todo 3",
+        "agent update 1",
+        "agent update 2",
+        "agent update 3",
+      ])
+    );
+    db.close();
+  });
+
+  it("Given project rules change between task rows, When read, Then both rule versions survive", () => {
+    // Given
+    const db = createFixture(dbPath);
+    seedTask(db, {
+      conversation_id: CID,
+      task_id: "task-1",
+      task: contextEnvelopeTask(1, "rules version one"),
+      last_modified_at: "2026-06-30 12:01:00.000000",
+    });
+    seedTask(db, {
+      conversation_id: CID,
+      task_id: "task-2",
+      task: contextEnvelopeTask(2, "rules version two"),
+      last_modified_at: "2026-06-30 12:02:00.000000",
+    });
+
+    // When
+    const { drafts } = readTasks(wrapReadableDb(db), [CID]);
+
+    // Then
+    const ruleContents = drafts.flatMap((draft) => {
+      const fields = draft.meta.fields as Record<string, string | string[]> | undefined;
+      const content = fields?.["context.project_rules.active_rule_files.content"];
+      return content === undefined ? [] : [content];
+    });
+    expect(ruleContents).toEqual(["rules version one", "rules version two"]);
     db.close();
   });
 

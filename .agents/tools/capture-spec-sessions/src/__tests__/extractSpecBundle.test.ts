@@ -184,6 +184,7 @@ function specReadWith(
     skipped: [],
     unbindable: [],
     collisions: [],
+    heuristic_bindings: [],
   };
 }
 
@@ -285,18 +286,23 @@ describe("§9.17 extractSpecBundle merge + fresh-read-error fallback", () => {
     expect(bundle!.events).toHaveLength(1);
   });
 
-  it("Given a stored bundle with legacy `implementation-gate` events, When extracted with existingBundle, Then the merged result normalizes the legacy phase to `review`", () => {
-    // Given — a bundle persisted before the rename; its review-phase events
-    // carry the old `implementation-gate` label. The fresh read adds specify.
-    const existing: SpecBundle = {
+  it("Given a stored bundle carrying the legacy `implementation-gate` phase, When extracted with existingBundle, Then the merged result normalizes it to `review` (no legacy phase leaks)", () => {
+    // Given — a bundle captured before the skill rename; its events + header
+    // carry the legacy `implementation-gate` phase value. Constructed by hand
+    // (not storedBundle/computeBundleHeader) to mimic an old on-disk bundle.
+    const legacyExisting: SpecBundle = {
       header: {
         type: "bundle_header",
         spec_id: SPEC,
-        phases_present: [],
-        phases_missing: [],
-        conversations_per_phase: { specify: 0, implement: 0, review: 0 },
+        phases_present: ["implementation-gate" as unknown as Phase],
+        phases_missing: ["specify" as unknown as Phase, "implement" as unknown as Phase],
+        conversations_per_phase: {
+          specify: 0,
+          implement: 0,
+          "implementation-gate": 1,
+        } as unknown as Record<Phase, number>,
         complete: false,
-        conversation_ids: [],
+        conversation_ids: ["c1"],
         extracted_at: "2026-07-14T00:00:00.000Z",
         source: "warp",
       },
@@ -306,7 +312,7 @@ describe("§9.17 extractSpecBundle merge + fresh-read-error fallback", () => {
           phase: "implementation-gate" as unknown as Phase,
           conversation_id: "c1",
           seq: 1,
-          ts: "2026-07-14 11:00:00.000000",
+          ts: "2026-07-14 09:00:00.000000",
           role: "user",
           kind: "query",
           content: "gate it",
@@ -315,15 +321,20 @@ describe("§9.17 extractSpecBundle merge + fresh-read-error fallback", () => {
       ],
     };
     const reader = fakeReader(
-      specReadWith("specify", "c2", [{ ts: "2026-07-14 09:00:00.000000", content: "spec it" }])
+      specReadWith("implement", "c2", [{ ts: "2026-07-14 10:00:00.000000", content: "implement it" }])
     );
 
     // When
-    const { bundle } = extractSpecBundle(reader, SPEC, { existingBundle: existing });
+    const { bundle } = extractSpecBundle(reader, SPEC, { existingBundle: legacyExisting });
 
-    // Then — legacy phase normalized to review before merge; both phases present
+    // Then — legacy phase normalized to `review` before merging; no
+    // `implementation-gate` leaks into the merged events or header.
     expect(bundle).not.toBeNull();
-    expect(bundle!.events.map((e) => e.phase)).toEqual(["specify", "review"]);
-    expect(bundle!.header.phases_present).toEqual(["specify", "review"]);
+    expect(bundle!.events.every((e) => (e.phase as string) !== "implementation-gate")).toBe(true);
+    expect(bundle!.events.some((e) => e.phase === "review")).toBe(true);
+    expect(bundle!.header.phases_present).toEqual(["implement", "review"]);
+    expect(
+      (bundle!.header.phases_present as readonly string[]).includes("implementation-gate")
+    ).toBe(false);
   });
 });

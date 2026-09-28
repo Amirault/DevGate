@@ -1,6 +1,6 @@
 ---
 name: review
-description: "Use when the user wants to validate their work is ready. Runs quality gates on git changes against the spec — checks test coverage, code quality, refactoring review (Fowler/Uncle Bob), impact/blast radius, architecture assessment, and build status. Triggers when user says review, check, validate, done, ready, or asks if something is ready to merge."
+description: "Use when the user wants to validate their spec implementation is ready. Runs quality gates on git changes against the spec — checks test coverage, code quality, refactoring review (Fowler/Uncle Bob), impact/blast radius, architecture assessment, and build status. Triggers when user says review, check, validate, done, ready, or asks if something is ready to merge."
 effort: high
 ---
 
@@ -8,7 +8,7 @@ effort: high
 
 **Purpose**: Validate that implementation is **ready for human review** — not that it's done.
 
-```
+```text
 specify → implement → review (you are here) → human says DONE → done
 ```
 
@@ -28,7 +28,7 @@ Why this scope: reviewing the whole task's code every time is slow and noisy, an
 
 For every changed hunk, look outward from the diff and assess:
 
-- **Downstream callers** — who consumes the changed symbol (method, type, property, config key)? Do those callers still compile and behave correctly? If a caller *should* have changed but is not in the diff, that is a ripple-effect gap.
+- **Downstream callers** — who consumes the changed symbol (method, type, property, config key)? Do those callers still compile and behave correctly? If a caller _should_ have changed but is not in the diff, that is a ripple-effect gap.
 - **Contracts & interfaces** — public APIs, endpoint shapes, request/response DTOs, domain invariants, cache key formats, event/message schemas, persisted data shapes. A change to any of these is a contract change; flag it and identify who depends on it (tests, other services, external callers).
 - **Broader architecture & domain** — even beyond direct callers, does the change introduce a dependency-direction violation, a boundary leak, a missing abstraction, or a domain-correctness problem? (Feeds the Architecture Step-back in Phase 4.)
 
@@ -41,21 +41,25 @@ The goal is not to re-review every existing file. It is to confirm the diff is s
 Every implementation must have a corresponding specification in `docs/backlog/`.
 
 **Use the script to locate the spec:**
+
 ```bash
 .agents/skills/review/scripts/find-in-progress-spec.sh
 ```
 
 **Script behavior:**
+
 - Exit 0 + prints spec path → exactly ONE spec found (proceed)
 - Exit 1 → ZERO or MULTIPLE specs found (ask user for clarification)
 
 **IMPORTANT**: After locating the spec, verify its status is `implementation-in-progress`. Handle other statuses as follows:
+
 - `status: specifying` or `ready-to-implement` → STOP: "Spec hasn't started implementation yet. Run the `implement` skill first."
 - `status: on-hold` → STOP: "Spec is on hold. Resume it via `specify` first."
 - `status: implemented` → Warn: "Gate already passed for this spec. Re-running for additional validation." (proceed)
 - `status: done` → STOP: "Spec is already closed (human said DONE)."
 
 **If script returns multiple specs or spec is unclear:**
+
 1. Check both backlog locations:
    - `docs/backlog/in-progress/` (highest priority — active work)
    - `docs/backlog/todo/` (if needed)
@@ -64,22 +68,24 @@ Every implementation must have a corresponding specification in `docs/backlog/`.
 4. Wait for explicit user selection before proceeding
 
 **If user mentions a ticket/issue number:**
+
 - Search `docs/backlog/` for matching filename or content
 - Confirm with user before proceeding
 
 ### Phase 2 — UNDERSTAND THE SPEC
 
-**Emit the spec correlation marker (phase=review).** Run this literal no-op shell command via `run_shell_command` (run it, do not just print it), with `spec_id` = the located spec filename without `.md` (resolved literal — no `$(...)` substitution, since Warp logs command text as submitted):
+**Emit the spec correlation marker (phase=review).** Run this literal no-op shell command with the active runtime's shell tool (Warp → `run_shell_command`, Claude Code → `Bash`, Hermes → `terminal` or `run_shell_command`). Run it; do not just print it. Run it as its own shell call — the whole command is the marker line alone: no `cd` prefix, no `;`/`&&` chaining, nothing after it (the `:` no-op needs no working directory). Use `spec_id` = the located spec filename without `.md` (resolved literal — no `$(...)` substitution because adapters match the submitted command text):
 
 ```bash
 : SPEC_MARKER v=1 spec_id=2026-06-30-multiquote-limit-5 phase=review
 ```
 
-The leading `:` is a no-op (exit 0). It lands in `commands.command` and creates a `blocks` row with `ai_metadata.conversation_id`, binding this session to the spec for the workflow adapter. Emit once, now (session start). See `specify/references/spec-marker.md`.
+The leading `:` is a no-op (exit 0). The selected adapter binds it through that runtime's native session store. Emit once, now (session start). See `.agents/skills/specify/references/spec-marker.md`.
 
 Read the spec completely and extract:
 
 **Core requirements:**
+
 - **Why** — problem statement
 - **What** — scope of changes
 - **Acceptance Criteria** — success conditions
@@ -88,12 +94,14 @@ Read the spec completely and extract:
 - **Technical Notes** — files affected, dependencies, risks
 
 **Health check:**
+
 - Review the health check table (WHY/WHAT/HOW BIG/WHAT IF/GAPS)
 - Note any 🟡 or 🔴 flags — these areas need extra scrutiny
 
 ### Phase 3 — GATHER IMPLEMENTATION ARTIFACTS
 
 **Default: gather git changes (impact-aware).**
+
 ```bash
 .agents/skills/review/scripts/gather-artifacts.sh git-changes
 ```
@@ -109,12 +117,14 @@ Only use `gather-artifacts.sh full-implementation <spec-file>` when the user exp
 Validate the implementation against these dimensions:
 
 #### ✅ Spec Alignment
+
 - [ ] All acceptance criteria are met
 - [ ] All examples from the spec are covered (either in code or tests)
 - [ ] No features/changes beyond spec scope (check "What NOT" section)
 - [ ] Technical notes (files, dependencies, risks) were addressed
 
 #### ✅ Test Coverage
+
 - [ ] Every acceptance criterion marked `[TEST]` has a corresponding automated test
 - [ ] Criteria marked `[MANUAL]` are appropriately NOT automated (infrastructure, file moves, UI)
 - [ ] Tests follow Given/When/Then structure (see `test-implementation` skill)
@@ -128,18 +138,20 @@ For each `[TEST]` criterion in the spec, produce an explicit mapping to the corr
 
 ```markdown
 ### [TEST] Criteria Coverage
-| Criterion | Test method | Status |
-|-----------|-------------|--------|
-| Given X, When Y, Then Z | `MyTestClass.Given_X_When_Y_Should_Z` | ✅ Found |
-| Given A, When B, Then C | — | ❌ Missing |
+
+| Criterion               | Test method                           | Status     |
+| ----------------------- | ------------------------------------- | ---------- |
+| Given X, When Y, Then Z | `MyTestClass.Given_X_When_Y_Should_Z` | ✅ Found   |
+| Given A, When B, Then C | —                                     | ❌ Missing |
 ```
 
-* Any `❌ Missing` entry is a **BLOCKER** — implementation cannot pass the gate.
-* If the spec has ONLY `[MANUAL]` criteria (e.g., pure Terraform/infra task), skip this table and note: "No `[TEST]` criteria — test coverage check N/A."
+- Any `❌ Missing` entry is a **BLOCKER** — implementation cannot pass the gate.
+- If the spec has ONLY `[MANUAL]` criteria (e.g., pure Terraform/infra task), skip this table and note: "No `[TEST]` criteria — test coverage check N/A."
 
 #### ✅ Code Quality & Refactoring Review
 
 **Floor — user rules compliance:**
+
 - [ ] Code is self-explanatory (no unclear names, no unnecessary comments)
 - [ ] No dead code, no unrelated changes
 - [ ] Follows KISS/YAGNI (simplest solution, no over-engineering)
@@ -151,7 +163,8 @@ For each `[TEST]` criterion in the spec, produce an explicit mapping to the corr
 Detect code smells (Fowler's catalog) and clean code violations (Uncle Bob). Suggest concrete refactorings to make the code cleaner, simpler, more expressive.
 
 **Output for each issue found:**
-```
+
+```text
 🔧 [smell name] — [file:line]
    Problem: [what's wrong]
    Impact: [why it matters for maintainability]
@@ -161,6 +174,7 @@ Detect code smells (Fowler's catalog) and clean code violations (Uncle Bob). Sug
 **If no issues found:** output "✅ Code quality & refactoring — clean. No suggestions."
 
 **Severity:**
+
 - Minor improvements → **RECOMMENDATION** (non-blocking, included in report)
 - Smell indicating likely bug or maintenance trap → **WARNING** (discuss before proceeding)
 
@@ -171,14 +185,16 @@ Detect code smells (Fowler's catalog) and clean code violations (Uncle Bob). Sug
 This operationalizes "focus on git changes, stay aware of the overall impact." For each changed hunk, trace outward from the diff and confirm the change is safe where it lands.
 
 - [ ] **Downstream callers identified** — for every changed public/internal symbol (method, type, property, config/section key), locate its consumers (grep usages). Confirm callers still compile and behave correctly, or are also in the diff.
-- [ ] **Ripple-effect gaps caught** — if a consumer *should* have changed but is NOT in the diff, flag it (BLOCKER if it breaks compile/behavior, else WARNING).
+- [ ] **Ripple-effect gaps caught** — if a consumer _should_ have changed but is NOT in the diff, flag it (BLOCKER if it breaks compile/behavior, else WARNING).
 - [ ] **Contract changes surfaced** — changed APIs, endpoint shapes, DTOs, domain invariants, cache key formats, event schemas, persisted data shapes: each listed with who depends on it (tests, other services, external callers).
 - [ ] **Unchanged-but-affected tests considered** — existing tests for callers may still pass but now exercise different behavior; note where coverage is now misleading.
 - [ ] **External/system impact** — migrations, cache invalidation, config, deployment, observability: does the change require a follow-up outside code? (Often `[MANUAL]`.)
 
 **Output:**
+
 ```markdown
 ### Impact & Blast Radius
+
 - Changed symbols traced: [list, with consumer counts]
 - Ripple-effect gaps: [consumer that should have changed but didn't, or "none"]
 - Contract changes: [API/DTO/cache/event/persisted — with dependents, or "none"]
@@ -186,6 +202,7 @@ This operationalizes "focus on git changes, stay aware of the overall impact." F
 ```
 
 **Severity:**
+
 - Consumer that breaks compile/behavior and isn't updated → **BLOCKER**
 - Contract change with untested dependents → **WARNING** (discuss)
 - Misleading-but-passing test coverage → **RECOMMENDATION**
@@ -198,11 +215,13 @@ Step back from the code. Evaluate the implementation with an architect's lens �
 Apply principles from Domain-Driven Design (Eric Evans), Clean Architecture / Hexagonal Architecture (Robert C. Martin, Alistair Cockburn), and SOLID (Robert C. Martin). Assess dependency direction, cohesion, boundary integrity, and coupling. Pick 2–3 realistic "what if" change scenarios to stress-test the design — scenarios must be grounded in known domain direction, not speculative (respect YAGNI).
 
 **Distinguish introduced vs pre-existing issues:**
+
 - Issues **introduced by this change** → flag normally (WATCH or CONCERN)
 - Issues **pre-existing** (not caused by this change) → apply Boy Scout Rule: if the fix is small and safe, suggest it as a RECOMMENDATION in the current scope. If the fix is too large, suggest opening a new spec to address it separately. Never block the gate for pre-existing issues the change didn't worsen.
 
 **Output:**
-```
+
+```text
 🏗️ Architecture: [CLEAN | WATCH | CONCERN]
 
 Strengths:
@@ -216,13 +235,15 @@ Change scenarios:
 ```
 
 **Severity:**
+
 - **CLEAN**: Sound architecture, no concerns
 - **WATCH**: Minor structural risks — track but don't block
 - **CONCERN**: Structural issue that will create significant cruft — discuss with user before proceeding
 
 #### ✅ Build & Validation
 
-**Read the project's AGENTS.md for the correct build command.** PricingApi uses `dotnet build -p:ANALYZERS=ENABLED -p:CSHARPIER=ENABLED` while IpaasManagementStudio uses `dotnet build`. Then run tests with coverage:
+**Read the project's AGENTS.md for the correct build command** (PricingApi: `dotnet build -p:ANALYZERS=ENABLED -p:CSHARPIER=ENABLED`). Then run tests with coverage:
+
 ```bash
 # Build (use the command from the project's AGENTS.md)
 <project-specific build command>
@@ -232,16 +253,20 @@ bash scripts/check-coverage.sh
 ```
 
 **Checklist:**
+
 - [ ] Build succeeds with no errors or warnings
 - [ ] All tests pass
 - [ ] Coverage maintains or improves baseline (enforced by `scripts/check-coverage.sh`)
 - [ ] CSharpier formatting applied (auto-fixed by build)
 
-**Note**: These are the EXACT same validations that run on `git commit`. If they pass here, pre-commit will succeed.
+**Note**: These mirror the build and coverage gates of the pre-commit hook; the hook also runs other checks (unstaged files, remote-behind, NuGet audit, linters), so a commit can still be rejected.
 
 #### ✅ Completeness
+
 - [ ] Spec status is `implementation-in-progress` (ready to transition to `implemented`)
-- [ ] All Implementation Plan increments are checked `[x]` (legacy specs: Breakdown checkboxes)
+- [ ] All Implementation Plan increments are checked `[x]` (legacy specs: Breakdown checkboxes), except **post-merge increments**
+- [ ] Every increment's `**Refactoring**` sub-checkbox is checked `[x]` — each increment ended with its subagent refactoring pass (outcome recorded in `## Implementation Log`), except post-merge increments
+- [ ] Post-merge increments are identified and listed in the verdict under `### Post-merge increments (human, after deploy)`. A post-merge increment is one whose covered criteria are all `[MANUAL]` and whose title or **How** says it can only run after this change is merged and deployed (e.g. "post-rollout", "after … is live in production"). It cannot be executed on the branch, so it never blocks PASS; it blocks DONE instead (Phase 6).
 - [ ] All "Open Questions" in spec are resolved (checked off)
 - [ ] If spec had "Follow-up" tasks, they're noted but NOT implemented (out of scope)
 - [ ] Mid-implementation changes are recorded in `## Implementation Log`, not silently edited into Acceptance Criteria/Examples
@@ -257,6 +282,7 @@ Output a clear verdict:
 **Scope**: Impact-aware git changes (default) | Full implementation (only if user asked)
 
 ### Checklist
+
 - [x/✗] Spec alignment: [details]
 - [x/✗] Test coverage: [details]
 - [x/✗] Code quality & refactoring: [clean | suggestions found]
@@ -266,19 +292,28 @@ Output a clear verdict:
 - [x/✗] Completeness: [details]
 
 ### Code Quality & Refactoring
+
 [🔧 suggestions or "No suggestions — code is clean."]
 
 ### Impact & Blast Radius
+
 [🔍 changed symbols traced, ripple-effect gaps, contract changes, system/ops follow-ups — or "Impact contained, no downstream gaps."]
 
 ### Architecture Assessment
+
 [🏗️ assessment with strengths, risks, and change scenarios]
 
+### Post-merge increments (human, after deploy)
+
+[Each unchecked post-merge increment with its `[MANUAL]` criteria, or "None."]
+
 ### Issues Found
+
 [List any blockers or warnings]
 ```
 
 **Verdict rules:**
+
 - **PASS**: All checklist items green, build + tests pass, no blockers, impact contained (no unhandled ripple-effect gaps), architecture CLEAN or WATCH
 - **FAIL**: Any blocker found (spec criteria unmet, tests failing, build broken, scope creep, ripple-effect gap that breaks a consumer, architecture CONCERN unresolved)
 
@@ -286,13 +321,17 @@ Output a clear verdict:
 
 **CRITICAL**: This gate validates readiness for human sign-off, not completion. Only the human can close a spec.
 
-#### If PASS:
+#### If PASS
+
 1. Transition spec to `implemented` (stays in `in-progress/`):
+
 ```bash
 .agents/skills/specify/scripts/transition-spec.sh docs/backlog/in-progress/<filename> implemented
 ```
-2. **Capture session at close** (non-blocking): run `npx tsx .agents/tools/capture-spec-sessions/src/cli.ts --spec <slug> --out .agents/tools/capture-spec-sessions/spec-sessions` from the dir containing `docs/backlog/`. Report the one-line `wrote …` summary and any `unbindable marker` warning (a decay signal). If the capture fails, log a warning and continue. Local-only: the `SPEC_MARKER` must be in the local Warp DB; remote (Oz cloud) sessions are not captured.
+
+2. **Capture session at close** (non-blocking): resolve `<session_source>` from the active runtime (Warp → `warp`, Claude Code → `claude-code`, Hermes → `hermes`), then run `.agents/tools/capture-spec-sessions/capture.sh --spec <slug> --source <session_source>` (path relative to the project root; the wrapper works from any cwd, installs the tool's deps on first use, and stores the bundle in the main checkout so a capture made in a worktree survives its removal). Never omit `--source` or infer it from an existing bundle. Report the one-line `wrote …` summary and any `unbindable marker` warning (a decay signal). If the capture fails, log a warning and continue. Local-only: the `SPEC_MARKER` must be in the selected adapter's local session store; remote sessions are not captured unless that adapter explicitly supports them.
 3. Say:
+
 > "✅ Gate passed. Implementation is ready for your review.
 >
 > Say **DONE** when you are satisfied to close this spec."
@@ -301,10 +340,11 @@ Output a clear verdict:
    - **Verify the handoff actually landed (precondition — do this FIRST, before transitioning or moving the file).** The spec's deliverable must be confirmed delivered, not merely attempted:
      - For code changes: the final push to the remote (e.g. `git push origin main`) must have **succeeded** — confirm the remote actually contains the commits (e.g. `git status` reports the branch up-to-date with its upstream, or the local `HEAD` matches the remote ref). A push that was only attempted, or that failed and needs a rebase/retry, does NOT count.
      - For infra/deploy specs: the deployment step must be confirmed applied to the target environment.
+     - Every post-merge increment (see Completeness) is checked `[x]`, together with its `**Refactoring**` sub-checkbox, and its results are recorded in `## Implementation Log`. Otherwise do NOT transition to `done`: keep status `implemented` and list the missing increments.
      - If the handoff did NOT succeed: do **NOT** transition to `done` and do **NOT** move the spec file. Keep status `implemented`, report the failure to the user, and wait for it to be resolved before retrying the DONE transition.
    - Run `.agents/skills/specify/scripts/transition-spec.sh docs/backlog/in-progress/<filename> done`
    - Move spec file from `docs/backlog/in-progress/` → `docs/backlog/done/`
-   - **Capture session at close** (non-blocking): run `npx tsx .agents/tools/capture-spec-sessions/src/cli.ts --spec <slug> --out .agents/tools/capture-spec-sessions/spec-sessions` from the dir containing `docs/backlog/`. Report the one-line `wrote …` summary and any `unbindable marker` warning. If the capture fails, log a warning and continue. Local-only constraint applies.
+   - **Capture session at close** (non-blocking): resolve `<session_source>` from the active runtime (Warp → `warp`, Claude Code → `claude-code`, Hermes → `hermes`), then run `.agents/tools/capture-spec-sessions/capture.sh --spec <slug> --source <session_source>` (path relative to the project root; the wrapper works from any cwd, installs the tool's deps on first use, and stores the bundle in the main checkout so a capture made in a worktree survives its removal). Never omit `--source` or infer it from an existing bundle. Report the one-line `wrote …` summary and any `unbindable marker` warning. If the capture fails, log a warning and continue. Local-only constraint applies to the selected adapter.
    - **Spec consolidation**: Check frontmatter for `merge_on_completion: true`:
      1. If true: Read `origin_spec` path
      2. Merge this spec's content into the origin spec under a `## Completed Increments` section (append, preserving existing content)
@@ -332,36 +372,40 @@ Output a clear verdict:
         - If no (pure refactoring, tooling, migration with no behavior change): skip and explain why
      5. Confirm to user: list which behaviors were added/updated/removed, which tests were anchored, and confirm schema validation passed
 
-#### If FAIL:
+#### If FAIL
+
 Determine if the failure is due to **spec incompleteness** (missing requirements, unclear acceptance criteria, scope ambiguity) or **code quality** (tests missing, build broken, scope creep).
 
 **If spec incompleteness**:
+
 > "Gate failed due to spec issues. The spec appears incomplete:
 > [List spec gaps]
 >
 > This looks like a spec problem, not a code problem. Want to transition the spec back to `specifying` to refine it?"
 
 **If code quality issues**:
+
 > "Gate failed. [List code blockers to fix]"
 
 Wait for user to address issues and re-run the gate.
 
 ## Pitfalls to Catch
 
-| Issue | Action |
-|-------|--------|
-| **Scope creep** (features NOT in spec) | BLOCKER — reference spec "What NOT" section |
-| **Missing test coverage** (`[TEST]` criteria without automated tests) | BLOCKER — show criteria coverage table |
-| **Unchecked plan increments** (Implementation Plan items left `[ ]`) | BLOCKER — implementation incomplete or progress not recorded in the spec |
-| **False negatives** (tests can't fail, placeholder data) | WARNING — point to spec examples |
-| **Quality violations** (regex, void functions, over-engineering) | WARNING — cite specific user rule |
-| **Build/test failures** | BLOCKER — show error output |
-| **Code smells** (long methods, feature envy, primitive obsession) | RECOMMENDATION — suggest specific refactoring |
-| **Ripple-effect gap** (downstream consumer should have changed but isn't in the diff) | BLOCKER/WARNING — trace blast radius from the diff |
-| **Contract change** (API/DTO/cache key/event/persisted shape) with untested dependents | WARNING — list dependents and verify |
-| **Wrong dependency direction** (domain depending on infrastructure) | CONCERN — architecture boundary violation |
-| **Hidden coupling** (change in one module forces change in unrelated module) | WATCH/CONCERN — assess future impact |
-| **Hardcoded assumptions** that will become tech debt | WATCH — flag with "what if" scenario |
+| Issue                                                                                   | Action                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Scope creep** (features NOT in spec)                                                  | BLOCKER — reference spec "What NOT" section                                                                                                                                            |
+| **Missing test coverage** (`[TEST]` criteria without automated tests)                   | BLOCKER — show criteria coverage table                                                                                                                                                 |
+| **Unchecked plan increments** (Implementation Plan items left `[ ]`)                    | BLOCKER — implementation incomplete or progress not recorded in the spec. Exception: a post-merge increment (see Completeness) is not a blocker; list it under "Post-merge increments" |
+| **Unchecked Refactoring checkbox** (increment's `- [ ] **Refactoring**` left unchecked) | BLOCKER — the increment never completed its mandatory subagent refactoring pass; run it before proceeding. Exception: a post-merge increment, whose pass runs with it after deploy     |
+| **False negatives** (tests can't fail, placeholder data)                                | WARNING — point to spec examples                                                                                                                                                       |
+| **Quality violations** (regex, void functions, over-engineering)                        | WARNING — cite specific user rule                                                                                                                                                      |
+| **Build/test failures**                                                                 | BLOCKER — show error output                                                                                                                                                            |
+| **Code smells** (long methods, feature envy, primitive obsession)                       | RECOMMENDATION — suggest specific refactoring                                                                                                                                          |
+| **Ripple-effect gap** (downstream consumer should have changed but isn't in the diff)   | BLOCKER/WARNING — trace blast radius from the diff                                                                                                                                     |
+| **Contract change** (API/DTO/cache key/event/persisted shape) with untested dependents  | WARNING — list dependents and verify                                                                                                                                                   |
+| **Wrong dependency direction** (domain depending on infrastructure)                     | CONCERN — architecture boundary violation                                                                                                                                              |
+| **Hidden coupling** (change in one module forces change in unrelated module)            | WATCH/CONCERN — assess future impact                                                                                                                                                   |
+| **Hardcoded assumptions** that will become tech debt                                    | WATCH — flag with "what if" scenario                                                                                                                                                   |
 
 ## Integration
 

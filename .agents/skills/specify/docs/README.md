@@ -27,13 +27,13 @@ flowchart LR
 
 Before starting, specify searches `docs/backlog/` for matching specs (same project, same files, or same title slug). If found, it routes based on status:
 
-| Status | Action |
-|--------|--------|
-| `specifying` | Continue refinement from the relevant phase |
-| `ready-to-implement` | Ask whether to reopen or keep approved |
-| `on-hold` | Ask whether to resume |
-| `rejected` | Surface rejection context, ask whether to resurrect |
-| No match | Start from Phase 1 |
+| Status               | Action                                              |
+| -------------------- | --------------------------------------------------- |
+| `specifying`         | Continue refinement from the relevant phase         |
+| `ready-to-implement` | Ask whether to reopen or keep approved              |
+| `on-hold`            | Ask whether to resume                               |
+| `rejected`           | Surface rejection context, ask whether to resurrect |
+| No match             | Start from Phase 1                                  |
 
 ### Phase 1 — Understand
 
@@ -49,13 +49,13 @@ Explore the codebase: related code paths, docs, overlapping specs, impacted beha
 
 Ask clarifying questions (max 3 per round) covering why, what, size, risk, and gaps. Then produce a health assessment:
 
-| Dimension | Score | Meaning |
-|-----------|-------|---------|
-| WHY | 🟢🟡🔴 | Problem clarity |
-| WHAT | 🟢🟡🔴 | Change clarity |
-| SIZE | 🟢🟡🔴 | Scope estimate (XS/S/M/L) |
-| RISK | 🟢🟡🔴 | Risk level |
-| GAPS | 🟢🟡🔴 | Missing information |
+| Dimension | Score  | Meaning                   |
+| --------- | ------ | ------------------------- |
+| WHY       | 🟢🟡🔴 | Problem clarity           |
+| WHAT      | 🟢🟡🔴 | Change clarity            |
+| SIZE      | 🟢🟡🔴 | Scope estimate (XS/S/M/L) |
+| RISK      | 🟢🟡🔴 | Risk level                |
+| GAPS      | 🟢🟡🔴 | Missing information       |
 
 **Blocking rules**: Any 🔴 blocks Phase 4. L-sized work must be split into ≥2 independent specs.
 
@@ -89,12 +89,12 @@ The plan is written into the spec file (the handoff artifact) and mirrored in th
 
 Present the spec and implementation plan. Request an explicit decision:
 
-| Decision | Action |
-|----------|--------|
-| ✅ Go | `transition-spec.sh <file> ready-to-implement` → **STOP** |
-| 🔄 Iterate | Back to relevant phase |
-| 🛑 On-hold | `transition-spec.sh <file> on-hold` |
-| 🗑️ Reject | Record reason, `transition-spec.sh <file> rejected` |
+| Decision   | Action                                                    |
+| ---------- | --------------------------------------------------------- |
+| ✅ Go      | `transition-spec.sh <file> ready-to-implement` → **STOP** |
+| 🔄 Iterate | Back to relevant phase                                    |
+| 🛑 On-hold | `transition-spec.sh <file> on-hold`                       |
+| 🗑️ Reject  | Record reason, `transition-spec.sh <file> rejected`       |
 
 After approval, the skill **stops**. Implementation happens in a fresh session.
 
@@ -114,22 +114,22 @@ stateDiagram-v2
     implemented --> done : Human confirms DONE
 ```
 
-| Status | Directory | Meaning |
-|--------|-----------|---------|
-| `specifying` | `docs/backlog/todo/` | Draft or refinement in progress |
-| `ready-to-implement` | `docs/backlog/todo/` | Approved AND validated, awaiting work start |
-| `on-hold` | `docs/backlog/todo/` | Deferred |
-| `implementation-in-progress` | `docs/backlog/in-progress/` | Work started |
-| `implemented` | `docs/backlog/in-progress/` | Implementation complete, awaiting sign-off |
-| `done` | `docs/backlog/done/` | Human confirmed done |
-| `rejected` | `docs/backlog/rejected/` | Won't do (can be resurrected) |
+| Status                       | Directory                   | Meaning                                     |
+| ---------------------------- | --------------------------- | ------------------------------------------- |
+| `specifying`                 | `docs/backlog/todo/`        | Draft or refinement in progress             |
+| `ready-to-implement`         | `docs/backlog/todo/`        | Approved AND validated, awaiting work start |
+| `on-hold`                    | `docs/backlog/todo/`        | Deferred                                    |
+| `implementation-in-progress` | `docs/backlog/in-progress/` | Work started                                |
+| `implemented`                | `docs/backlog/in-progress/` | Implementation complete, awaiting sign-off  |
+| `done`                       | `docs/backlog/done/`        | Human confirmed done                        |
+| `rejected`                   | `docs/backlog/rejected/`    | Won't do (can be resurrected)               |
 
 ## Scripts
 
-| Script | Purpose |
-|--------|---------|
-| `scripts/create-spec.sh <slug>` | Scaffold a new spec file with frontmatter |
-| `scripts/validate-spec.sh <file>` | Validate spec structure (frontmatter, required sections) |
+| Script                                       | Purpose                                                       |
+| -------------------------------------------- | ------------------------------------------------------------- |
+| `scripts/create-spec.sh <slug>`              | Scaffold a new spec file with frontmatter                     |
+| `scripts/validate-spec.sh <file>`            | Validate spec structure (frontmatter, required sections)      |
 | `scripts/transition-spec.sh <file> <status>` | Transition spec status (re-validates on `ready-to-implement`) |
 
 ## Templates
@@ -138,7 +138,7 @@ stateDiagram-v2
 
 ## File Structure
 
-```
+```text
 .agents/skills/specify/
 ├── SKILL.md                        # Skill definition and process
 ├── docs/
@@ -164,11 +164,11 @@ The skill has an eval suite that detects behavioral regressions. After any chang
 
 ### What the evals cover
 
-| Eval | Focus | Assertions | Type |
-|------|-------|------------|------|
-| 1 | Full Phase 1–6 flow | 12 | Positive — correct behavior |
-| 2 | Manual-only trigger guard | 4 | Negative — "fix" keyword must NOT auto-trigger |
-| 3 | Pre-check routing for existing specs | 10 | Positive — pre-check + normal flow |
+| Eval | Focus                                | Assertions | Type                                           |
+| ---- | ------------------------------------ | ---------- | ---------------------------------------------- |
+| 1    | Full Phase 1–6 flow                  | 12         | Positive — correct behavior                    |
+| 2    | Manual-only trigger guard            | 4          | Negative — "fix" keyword must NOT auto-trigger |
+| 3    | Pre-check routing for existing specs | 10         | Positive — pre-check + normal flow             |
 
 **Total: 26 assertions** across 3 evals.
 
@@ -202,11 +202,11 @@ The helper script sets up directories and displays the eval summary:
 
 ### Current baseline
 
-| Eval | with_skill | without_skill | Delta |
-|------|-----------|--------------|-------|
-| 1 (full flow) | 12/12 (100%) | 4/12 (33%) | +67% |
-| 2 (trigger guard) | 4/4 (100%) | 4/4 (100%) | 0% (negative test) |
-| 3 (pre-check) | 10/10 (100%) | 1/10 (10%) | +90% |
+| Eval              | with_skill   | without_skill | Delta              |
+| ----------------- | ------------ | ------------- | ------------------ |
+| 1 (full flow)     | 12/12 (100%) | 4/12 (33%)    | +67%               |
+| 2 (trigger guard) | 4/4 (100%)   | 4/4 (100%)    | 0% (negative test) |
+| 3 (pre-check)     | 10/10 (100%) | 1/10 (10%)    | +90%               |
 
 ### Updating the baseline
 
@@ -215,9 +215,11 @@ After intentionally changing skill behavior (e.g., adding a new phase):
 1. Run the evals: **"run specify evals"**
 2. Verify the new results are intentional
 3. Update the baseline snapshot:
+
    ```bash
    cp specify-workspace/iteration-N/benchmark.json evals/baseline/benchmark.json
    ```
+
 4. Commit the updated baseline
 
 ## Guard Rails

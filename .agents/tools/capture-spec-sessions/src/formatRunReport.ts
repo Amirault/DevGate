@@ -24,6 +24,11 @@ function anomalyLines(summary: RunSummary): string[] {
       `fresh read failed: ${summary.fresh_read_error} — using stored bundle`
     );
   }
+  for (const s of summary.heuristic_bindings) {
+    lines.push(
+      `heuristic binding: phase=${s.phase} start_ts=${s.start_ts} — bound via ai_queries temporal fallback (local orchestrated subagent); verify conversation is correct`
+    );
+  }
   for (const s of summary.unbindable) {
     lines.push(`unbindable marker: phase=${s.phase} start_ts=${s.start_ts}`);
   }

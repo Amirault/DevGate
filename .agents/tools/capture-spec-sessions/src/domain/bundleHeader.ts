@@ -1,9 +1,4 @@
-import type {
-  BundleHeader,
-  BundleSource,
-  Phase,
-  SpecBundle,
-} from "./models.js";
+import type { BundleHeader, BundleSource, Phase, SpecBundle } from "./models.js";
 import { PHASES, normalizePhase } from "./models.js";
 
 function emptyPhaseSets(): Record<Phase, Set<string>> {
@@ -48,41 +43,32 @@ export function computeBundleHeader(
   };
 }
 
+/** Legacy phase value captured before the `implementation-gate` → `review` rename. */
 const LEGACY_PHASE = "implementation-gate";
 
 /**
- * Normalize a bundle whose events may carry the legacy `implementation-gate`
- * phase label (emitted before the phase was renamed to `review`). Events are
- * mapped to the canonical phase and the header is recomputed so the
- * phases_present / phases_missing / conversations_per_phase fields stay
- * consistent. Bundles that already use only canonical phases are returned
- * unchanged (fast path — no recompute).
+ * Normalize a stored bundle so legacy `implementation-gate` phases become `review`.
+ *
+ * Bundles captured before the skill rename carry the old phase value in their
+ * events and header. This maps every event's phase to its canonical name and
+ * recomputes the header from the normalized events (preserving `extracted_at`).
+ * A bundle that already uses canonical phases is returned unchanged.
  */
-export function normalizeBundle(bundle: SpecBundle): SpecBundle {
-  if (!bundle.events.some((e) => (e.phase as string) === LEGACY_PHASE)) {
-    return bundle;
-  }
-  const events = bundle.events.map((e) => ({
-    ...e,
-    phase: normalizePhase(e.phase as string),
-  }));
+export function normalizeBundle(b: SpecBundle): SpecBundle {
+  const needsNormalize =
+    b.events.some((e) => (e.phase as string) === LEGACY_PHASE) ||
+    (b.header.phases_present as readonly string[]).includes(LEGACY_PHASE) ||
+    (b.header.phases_missing as readonly string[]).includes(LEGACY_PHASE);
+  if (!needsNormalize) return b;
+
+  const events = b.events.map((e) => ({ ...e, phase: normalizePhase(e.phase) }));
   const phaseByCid = new Map<string, Phase>();
   for (const e of events) {
-    if (!phaseByCid.has(e.conversation_id)) {
-      phaseByCid.set(e.conversation_id, e.phase);
-    }
+    if (!phaseByCid.has(e.conversation_id)) phaseByCid.set(e.conversation_id, e.phase);
   }
-  const headerFields = computeBundleHeader(
-    bundle.header.spec_id,
-    bundle.header.source,
-    phaseByCid
-  );
+  const headerFields = computeBundleHeader(b.header.spec_id, b.header.source, phaseByCid);
   return {
-    header: {
-      ...headerFields,
-      type: "bundle_header",
-      extracted_at: bundle.header.extracted_at,
-    },
+    header: { type: "bundle_header", ...headerFields, extracted_at: b.header.extracted_at },
     events,
   };
 }

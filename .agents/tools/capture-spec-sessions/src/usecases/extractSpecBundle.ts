@@ -67,11 +67,10 @@ export function extractSpecBundle(
   specId: string,
   options: ExtractOptions = {}
 ): ExtractResult {
-  const {
-    existingBundle: rawExistingBundle = null,
-    noMerge = false,
-    completeOnly = false,
-  } = options;
+  const { existingBundle: rawExistingBundle = null, noMerge = false, completeOnly = false } =
+    options;
+  // Normalize a stored bundle captured before the `implementation-gate` → `review`
+  // rename so legacy phase values never leak into the merged result.
   const existingBundle = rawExistingBundle ? normalizeBundle(rawExistingBundle) : null;
 
   // Try the fresh read from the external source. If it errors and we have a
@@ -94,7 +93,7 @@ export function extractSpecBundle(
     );
   }
 
-  const { source, phaseByCid, drafts, skipped, unbindable, collisions } = specRead;
+  const { source, phaseByCid, drafts, skipped, unbindable, collisions, heuristic_bindings } = specRead;
 
   // Hermes persists true insertion order in message_id because clocks can move
   // backwards. Raise only the internal sort key to the previous timestamp in the
@@ -155,6 +154,7 @@ export function extractSpecBundle(
     phases_missing: merged.header.phases_missing,
     unbindable,
     collisions,
+    heuristic_bindings,
     skipped_rows: skipped,
     fresh_read_error: null,
     output_path: null,
@@ -188,6 +188,7 @@ function storedOnlyResult(
     phases_missing: bundle.header.phases_missing,
     unbindable: [],
     collisions: [],
+    heuristic_bindings: [],
     skipped_rows: [],
     fresh_read_error: freshReadError,
     output_path: null,

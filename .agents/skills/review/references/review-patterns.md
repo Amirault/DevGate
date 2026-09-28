@@ -7,8 +7,10 @@
 **Scenario**: User implemented a feature to filter quotes by coverage type
 
 **Spec excerpt**:
+
 ```markdown
 ## Acceptance Criteria
+
 - Given a list of quotes with various coverage types, When filtering by "MRH", Then only quotes with coverage "MRH" are returned
 - Given a list of quotes, When filtering by unknown coverage "XYZ", Then an empty list is returned
 ```
@@ -16,6 +18,7 @@
 **Implementation review**:
 
 ✅ **Tests found**:
+
 ```csharp
 [Theory]
 [InlineData("MRH", 2)]
@@ -42,6 +45,7 @@ public async Task GivenQuotes_WhenFilteringByCoverage_ShouldReturnMatchingQuotes
 ```
 
 ✅ **Verdict**: PASS
+
 - All acceptance criteria covered
 - Tests use real-looking data (not placeholders)
 - Edge case (unknown coverage) tested
@@ -54,8 +58,10 @@ public async Task GivenQuotes_WhenFilteringByCoverage_ShouldReturnMatchingQuotes
 **Scenario**: User implemented nullable field handling but didn't test the null case
 
 **Spec excerpt**:
+
 ```markdown
 ## Acceptance Criteria
+
 - Given a quote with optional discount field populated, When calculating price, Then discount is applied
 - Given a quote with optional discount field null, When calculating price, Then no discount is applied
 ```
@@ -63,6 +69,7 @@ public async Task GivenQuotes_WhenFilteringByCoverage_ShouldReturnMatchingQuotes
 **Implementation review**:
 
 ❌ **Problem**: Only happy path tested
+
 ```csharp
 [Fact]
 public async Task GivenQuoteWithDiscount_WhenCalculating_ShouldApplyDiscount()
@@ -72,11 +79,13 @@ public async Task GivenQuoteWithDiscount_WhenCalculating_ShouldApplyDiscount()
 ```
 
 ❌ **Verdict**: BLOCKER
+
 - Second acceptance criterion not covered
 - Nullable field behavior untested
 - Risk: production will fail if discount is null
 
 **Required fix**:
+
 ```csharp
 [Theory]
 [InlineData(10, 900)]  // with discount
@@ -92,8 +101,10 @@ public async Task GivenQuote_WhenCalculating_ShouldHandleOptionalDiscount(
 **Scenario**: Implementation correct but tests use placeholder data
 
 **Spec excerpt**:
+
 ```markdown
 ### Example 1: Successful Quote Creation
+
 - **Context**: User "jean.dupont@wakam.com" with role "underwriter" requests quote for product "MRH"
 - **Action**: Submit quote request
 - **Result**: Quote created with ID and status "DRAFT"
@@ -102,12 +113,14 @@ public async Task GivenQuote_WhenCalculating_ShouldHandleOptionalDiscount(
 **Implementation review**:
 
 ⚠️ **Issue**: Test uses generic placeholders instead of spec examples
+
 ```csharp
 var user = "user@example.com"; // not matching spec example
 var product = "PRODUCT_A";      // not matching spec example
 ```
 
 ⚠️ **Verdict**: WARNING (non-blocking)
+
 - Functionality correct
 - Tests pass
 - But: harder to trace test to spec
@@ -118,8 +131,10 @@ var product = "PRODUCT_A";      // not matching spec example
 ### Example 4: BLOCKER — Scope Creep
 
 **Spec excerpt**:
+
 ```markdown
 ## What NOT
+
 - We are NOT adding validation for email format
 - We are NOT changing the existing user lookup logic
 ```
@@ -127,12 +142,14 @@ var product = "PRODUCT_A";      // not matching spec example
 **Implementation review**:
 
 ❌ **Problem**: Extra validation added beyond spec
+
 ```diff
 + if (!email.Contains("@"))
 +     throw new InvalidEmailException();
 ```
 
 ❌ **Verdict**: BLOCKER
+
 - Spec explicitly excluded email validation ("What NOT" section)
 - Scope creep detected
 - Must remove before commit
@@ -146,6 +163,7 @@ var product = "PRODUCT_A";      // not matching spec example
 **Implementation review**:
 
 🔧 **Long Method** — `QuoteService.cs:45`
+
 ```csharp
 public async Task<Quote> CreateQuoteAsync(CreateQuoteRequest request)
 {
@@ -170,6 +188,7 @@ public async Task<Quote> CreateQuoteAsync(CreateQuoteRequest request)
 ```
 
 🔧 **Refactoring suggestion**:
+
 ```
 🔧 Long Method — QuoteService.cs:45
    Problem: CreateQuoteAsync mixes validation, rule lookup, premium calculation, and persistence
@@ -178,6 +197,7 @@ public async Task<Quote> CreateQuoteAsync(CreateQuoteRequest request)
 ```
 
 ⚠️ **Verdict**: RECOMMENDATION (non-blocking)
+
 - Code works and tests pass
 - Refactoring would improve testability and readability
 - Not a blocker, but strongly recommended before the codebase grows
@@ -191,6 +211,7 @@ public async Task<Quote> CreateQuoteAsync(CreateQuoteRequest request)
 **Implementation review**:
 
 🏗️ **Wrong dependency direction** — `Domain/Services/PricingEngine.cs`
+
 ```csharp
 using Infrastructure.Persistence; // ❌ Domain layer depending on Infrastructure
 
@@ -207,6 +228,7 @@ public class PricingEngine
 ```
 
 🏗️ **Architecture assessment**:
+
 ```
 🏗️ Architecture: CONCERN
 
@@ -224,6 +246,7 @@ Change scenarios:
 ```
 
 ❌ **Verdict**: CONCERN (blocking)
+
 - Domain must depend on an abstraction (IPricingRuleRepository), not a concrete infrastructure class
 - Fix: introduce an interface in Domain, implement in Infrastructure, inject via constructor
 - This is a structural issue that will compound over time — resolve before merging
@@ -237,11 +260,13 @@ Change scenarios:
 **Implementation review**:
 
 🏗️ **Hardcoded assumption** — `Application/Handlers/QuoteHandler.cs:12`
+
 ```csharp
 private static readonly string[] SupportedCoverages = { "MRH", "AUTO", "SANTE" };
 ```
 
 🏗️ **Architecture assessment**:
+
 ```
 🏗️ Architecture: WATCH
 
@@ -258,6 +283,7 @@ Change scenarios:
 ```
 
 ⚠️ **Verdict**: WATCH (non-blocking)
+
 - Works correctly today
 - Flag for future: consider making this configurable or deriving from a single source of truth
 - Not blocking this implementation, but worth tracking
@@ -276,6 +302,7 @@ Change scenarios:
 ```
 
 **Impact & Blast Radius**:
+
 ```
 - Changed symbols traced: PricingEngine.CalculateBasePremium (1 consumer)
 - Ripple-effect gaps: QuoteHandler.cs:34 still calls CalculateBasePremium — will not compile
@@ -284,6 +311,7 @@ Change scenarios:
 ```
 
 ❌ **Verdict**: BLOCKER
+
 - The diff is internally consistent (PricingEngine + its tests pass), but a downstream caller was missed.
 - A review that ignores blast radius misses this because `QuoteHandler.cs` is not in the diff.
 - Fix: update `QuoteHandler.cs` (and its tests) in the same change.
@@ -294,10 +322,10 @@ This is exactly what "focus on git changes but stay aware of the overall impact"
 
 ## Red Flags (Always Investigate)
 
-| Red Flag | Why |
-|----------|-----|
-| Test always passes (`result.Should().NotBeNull()` with no content assertion) | Useless test |
-| Void function with object parameter (side effect) | Against user rules |
-| `Regex.Match` usage | Against user rules |
-| Git diff includes unrelated files | Scope creep |
-| Spec status is `specifying` or `on-hold` | Not approved yet |
+| Red Flag                                                                     | Why                |
+| ---------------------------------------------------------------------------- | ------------------ |
+| Test always passes (`result.Should().NotBeNull()` with no content assertion) | Useless test       |
+| Void function with object parameter (side effect)                            | Against user rules |
+| `Regex.Match` usage                                                          | Against user rules |
+| Git diff includes unrelated files                                            | Scope creep        |
+| Spec status is `specifying` or `on-hold`                                     | Not approved yet   |
