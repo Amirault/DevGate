@@ -84,7 +84,7 @@ if [ "$NEW_STATUS" = "ready-to-implement" ]; then
     fi
 fi
 
-TIMESTAMP=$(date +"%Y-%m-%d %H:%M")
+TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 # Specs always live directly under docs/backlog/<todo|in-progress|done|rejected>/
 BACKLOG_ROOT=$(dirname "$(dirname "$SPEC_FILE")")

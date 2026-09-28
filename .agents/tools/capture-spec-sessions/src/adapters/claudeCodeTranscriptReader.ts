@@ -52,6 +52,7 @@ export class ClaudeCodeTranscriptReader implements ConversationReader {
       skipped,
       unbindable: [],
       collisions: [],
+      heuristic_bindings: [],
     };
   }
 }
@@ -163,12 +164,15 @@ function draftsFromRecord(
   const conversation_id = conversationId(record);
   const ts = timestamp(record);
   if (conversation_id === null || !boundCids.has(conversation_id)) return [];
+  // Session metadata records (custom-title, last-prompt, file-history-snapshot, …)
+  // carry no timestamp and are not events — only message records are.
+  const type = stringField(record.value, "type");
+  if (type !== "user" && type !== "assistant") return [];
   if (ts === null) {
     skipped.push(skippedLine(record.filePath, record.lineNumber, "missing timestamp"));
     return [];
   }
 
-  const type = stringField(record.value, "type");
   const message = record.value.message;
   if (!isRecord(message)) return [];
 

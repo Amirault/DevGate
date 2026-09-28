@@ -2,8 +2,10 @@
 # find-in-progress-spec.sh — Locates the spec file in backlog/in-progress/
 # Usage: ./find-in-progress-spec.sh [--project PricingApi|IpaasManagementStudio]
 # Exit 0 = exactly one spec found (prints path), Exit 1 = zero or multiple specs found
+# shellcheck disable=SC2250,SC2292,SC2312  # style/note-level rules; legacy patterns kept verbatim; error/warning-level rules stay active
 
-BACKLOG_DIR="docs/backlog/in-progress"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKLOG_DIR="$SCRIPT_DIR/../../../../docs/backlog/in-progress"
 PROJECT_FILTER=""
 
 # Parse arguments
@@ -26,7 +28,11 @@ if [ ! -d "$BACKLOG_DIR" ]; then
 fi
 
 # Count .md files in in-progress/
-SPEC_FILES=($(find "$BACKLOG_DIR" -maxdepth 1 -name "*.md" -type f))
+# while-read instead of mapfile: macOS default bash is 3.2 and mapfile requires bash 4
+SPEC_FILES=()
+while IFS= read -r spec; do
+    SPEC_FILES+=("$spec")
+done < <(find "$BACKLOG_DIR" -maxdepth 1 -name "*.md" -type f)
 
 # Filter by project if specified
 if [ -n "$PROJECT_FILTER" ]; then

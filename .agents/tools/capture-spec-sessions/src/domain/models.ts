@@ -12,9 +12,9 @@ export const PHASES = ["specify", "implement", "review"] as const;
 export type Phase = (typeof PHASES)[number];
 
 /**
- * Normalize a phase label. Historical markers emitted `implementation-gate`
- * before the phase was renamed to `review`; legacy labels are mapped to the
- * canonical form so old sessions keep parsing without manual migration.
+ * Normalize a phase value to its canonical name.
+ * `implementation-gate` is a legacy alias (the skill was renamed to `review`);
+ * old markers and stored bundles carrying it are mapped to `review`.
  */
 export function normalizePhase(phase: string): Phase {
   return phase === "implementation-gate" ? "review" : (phase as Phase);
@@ -85,6 +85,14 @@ export interface SpecBundle {
 /** Result of binding one marker emission to a conversation. */
 export type SeedStatus = "bound" | "unbindable" | "collision";
 
+/**
+ * How confident we are in a bound binding.
+ * - certain  : backed by the blocks.ai_metadata JOIN (verified 1:1).
+ * - heuristic: backed by the ai_queries temporal-proximity fallback
+ *              (used when a local orchestrated subagent writes no blocks row).
+ */
+export type SeedConfidence = "certain" | "heuristic";
+
 export interface SeedMatch {
   /** The conversation id, or null when the marker could not be bound. */
   conversation_id: string | null;
@@ -92,6 +100,11 @@ export interface SeedMatch {
   marker_command: string;
   start_ts: string;
   status: SeedStatus;
+  /**
+   * Only set on status=="bound" seeds.
+   * Absent means "certain" (blocks JOIN — original behaviour).
+   */
+  confidence?: SeedConfidence;
 }
 
 export interface SkippedRow {
@@ -110,6 +123,12 @@ export interface RunSummary {
   phases_missing: Phase[];
   unbindable: SeedMatch[];
   collisions: SeedMatch[];
+  /**
+   * Seeds bound via the ai_queries temporal-proximity fallback.
+   * Present when a local orchestrated subagent writes no blocks row.
+   * The learn skill should flag these for human review.
+   */
+  heuristic_bindings: SeedMatch[];
   skipped_rows: SkippedRow[];
   /** Set when the fresh external-source read failed and the result fell back to a stored bundle. */
   fresh_read_error: string | null;

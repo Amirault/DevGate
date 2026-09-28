@@ -25,6 +25,7 @@ export class WarpConversationReader implements ConversationReader {
       const seeds = findSeeds(db, specId);
       const unbindable = seeds.filter((s) => s.status === "unbindable");
       const collisions = seeds.filter((s) => s.status === "collision");
+      const heuristic_bindings = seeds.filter((s) => s.confidence === "heuristic");
 
       const phaseByCid = new Map<string, Phase>();
       for (const s of seeds) {
@@ -47,7 +48,7 @@ export class WarpConversationReader implements ConversationReader {
         skipped.push(...result.skipped);
       }
 
-      return { source: "warp", phaseByCid, drafts, skipped, unbindable, collisions };
+      return { source: "warp", phaseByCid, drafts, skipped, unbindable, collisions, heuristic_bindings };
     });
   }
 }

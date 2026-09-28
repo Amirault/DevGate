@@ -1,47 +1,189 @@
 ---
 name: learn
-description: "Learning pass on a spec: extract its conversation bundle, read the sessions + Implementation Log, report evidence-based improvements to the spec-driven skills. Triggers on learn/retro."
+description: "Learning pass on a spec: extract its conversation bundle, classify session breakdown points into four categories, and suggest at most one cross-spec harness improvement with evidence. Read-only. Triggers on learn/retro/post-mortem."
 effort: medium
 ---
 
 # Learn
 
-Run an evidence-based learning pass on a spec that has run through the spec-driven pipeline
-(`specify → implement → review`). Extract what actually happened across its
-sessions, and report concrete improvement suggestions for the skills/tooling. Read-only — it
-does not edit other skills.
+```yaml
+version: v1
 
-## Process
+scope:
+  in_scope:
+    - Observation of one spec's session bundle
+    - Classification of breakdown points found in those sessions
+    - Prioritization down to at most one candidate
+    - Suggestion of that candidate and its potential fix
+  out_of_scope:
+    - Executing the specify / implement / review skills
+    - Applying the suggested fix
+    - Any write operation on the repository or on other skills
 
-1. **Locate the spec** (user names it, or run `npx tsx .agents/tools/capture-spec-sessions/src/cli.ts --list`). Record `spec_id` + status.
+inputs:
+  sessions:
+    tool: capture-spec-sessions
+    cwd: the project root (paths below are relative to it); capture.sh itself resolves the project root from any cwd
+    session_source: Resolve from the active runtime — Warp → `warp`, Claude Code → `claude-code`, Hermes → `hermes`.
+    locate_spec: .agents/tools/capture-spec-sessions/capture.sh --list
+    extract: .agents/tools/capture-spec-sessions/capture.sh --spec <slug> --source <session_source>
+    bundle_path: >
+      The path printed on the `wrote …` line. The wrapper stores bundles in the main
+      checkout's spec-sessions/ folder, so captures made from worktrees are included.
+    rules:
+      - ALWAYS pass the resolved session_source explicitly; never rely on a default or infer it from a stored bundle.
+      - ALWAYS run the tool; never read the stored bundle directly (decay-safe merge).
+      - Read the JSONL with the runtime's file-read tool (Warp read_files, Claude Code Read), losslessly; on truncation, read the rest in ranges.
+      - Never pipe the bundle through commands that summarize or truncate.
+    second_evidence_source: the spec's "## Implementation Log"
+    warnings:
+      - warning: unbindable marker, phase present in bundle
+        action: Report the phase as recovered from disk.
+      - warning: unbindable marker, phase absent from both persisted and live
+        action: Report as a finding (session lost), fall back to the Implementation Log, say so.
+      - warning: fresh read failed
+        action: Note the degradation to the stored bundle; captured phases are still recovered.
+    exit_codes:
+      0: bundle written
+      1: nothing written (zero conversations bound, or --complete-only withheld)
+      2: usage error
+    event_fields_used:
+      - phase, seq, ts, role, kind, content
+      - meta.exit_code, meta.tool, meta.repeat, meta.truncated, meta.original_len, meta.confidence
 
-2. **Extract** the bundle — ALWAYS run the tool (it reads fresh from the external source, then fills gaps from the stored bundle via decay-safe merge), then read the result. Never read the stored bundle directly. From the dir containing `docs/backlog/`:
-   ```bash
-   npx tsx .agents/tools/capture-spec-sessions/src/cli.ts --spec <slug> --out .agents/tools/capture-spec-sessions/spec-sessions
-   ```
-   Read the result + warnings. The tool merges fresh + persisted, so a phase captured at close but since decayed live is recovered from the persisted bundle. An `unbindable marker` warning means that phase's live binding is gone — if the phase is present in the bundle (recovered from disk), report it as recovered; if it's missing from both persisted and live, report it as a finding (the session is lost — fall back to the spec's `## Implementation Log` and say so explicitly). A `fresh read failed` warning means the tool degraded to the stored bundle — the captured phases are still recovered.
+pipeline:
+  - id: observation
+    name: OBSERVATION
+    goal: Retrieve the session bundle for the targeted spec.
+    actions:
+      - Record spec_id and status.
+      - Run capture-spec-sessions, then read the bundle and its warnings.
+      - Read the spec's "## Implementation Log".
 
-3. **Read the evidence** — read the bundle JSONL with `read_files` (lossless; if it reports
-   truncation, read the rest in ranges) AND the spec's `## Implementation Log`. Do not pipe the
-   bundle through commands that summarize or truncate — that drops evidence.
+  - id: diagnose_spec_sessions
+    name: DIAGNOSE SPEC SESSIONS
+    goal: Search the bundle and classify every breakdown point found.
+    evidence_rule: >
+      Every item MUST cite its evidence: an event ts plus a quoted line, a command plus its
+      meta.exit_code, or an Implementation Log entry. No evidence, no item.
+    evidence_integrity: >
+      Flag any item whose evidence carries meta.truncated, meta.confidence heuristic, or
+      meta.confidence schema-mismatch. Compaction happens upstream above 2000 chars.
 
-4. **Report** findings + suggested improvements. Every finding MUST cite its evidence: a
-   session timestamp, a quoted line, a command + exit code, or a log entry. No evidence → drop
-   the finding. Map each suggestion to a specific skill file + section, never generic advice.
+    disambiguation:
+      question: Is the asset correct as written?
+      rules:
+        - if: The asset says the right thing and the session did not follow it.
+          then: asset_interpretation_gaps
+          fix_axis: wording, placement, or enforcement of the existing asset
+        - if: The asset says the wrong thing.
+          then: bad_expectation
+          fix_axis: content of the rule itself
+      note: Execution fault versus specification fault. This axis decides the fix.
 
-## Guard rails
+    classification:
+      - id: asset_interpretation_gaps
+        label: Asset interpretation gaps
+        meaning: The asset was right, the session did not honour it.
+        criteria:
+          - A session does not follow the AGENTS.md rules.
+          - A skill shows unexpected behaviour during a session.
+          - Project standards are not properly followed.
+          - The specify / implement / review workflow was not followed as written.
+        bound: >
+          Record the deviation with its evidence. Do not reopen the workflow's design in the
+          abstract, but an evidenced deviation may target the phase skill file involved.
 
-- **Manual trigger only** — `learn` / `retro` / `post-mortem`.
-- **Read-only** — never edit other skills or the spec; suggestions only, unless the user
-  explicitly approves a fix.
-- **Evidence-first** — cite or drop. Findings are about process/tooling, never the person.
-- **Never commit** — produces a report; committing is a separate, explicitly-approved step.
+      - id: bad_expectation
+        label: Bad expectation
+        meaning: The asset itself carries the defect.
+        criteria:
+          - A skill triggers but should not.
+          - A skill does not trigger but should.
+          - >
+            The AGENTS.md context degrades the session:
+            obsolete path, wrong assertion, outdated information.
+          - >
+            The spec file is wrong and has been corrected mid-flight,
+            e.g. a wrong assertion was added and degraded the workflow.
 
-## Limitations
+      - id: time_cost
+        label: Time cost
+        criteria:
+          - id: task_too_long
+            condition: A task took too much time to resolve.
+            signal: Delta between the first and last event ts of the task, within one phase.
+          - id: task_looping
+            condition: A task looped without reaching a resolution.
+            signal: >
+              ts delta for the duration, plus the repetition count of the same meta.tool
+              or the same target file across events, plus meta.repeat when present.
+        on_missing_ts: Report the gap and skip this category. Never estimate a duration.
 
-- `capture-spec-sessions` binds phases via `blocks` rows Warp evicts over time. The phase skills
-  now capture at close (into `.agents/tools/capture-spec-sessions/spec-sessions/<slug>.jsonl`),
-  so `learn` recovers decayed phases from the persisted bundle via decay-safe merge — see the
-  tool's README "Limitations" for details. A phase missing from both persisted and live is a finding.
-- `capture-spec-sessions` compacts `agent_message` values > 2000 chars (head+tail); the bundle
-  is otherwise lossless — flag any finding whose evidence was truncated upstream.
+      - id: side_improvement
+        label: Side improvement
+        meaning: No failure occurred, but an asset can be tightened.
+        patterns:
+          - trigger: A decision was made, or a written decision is missing.
+            suggestion: Create an ADR.
+          - trigger: A new rule can be locked, or a blocking rule is missing.
+            suggestion: Improve lint / pre-commit hooks.
+          - trigger: Runtime information was needed and missing.
+            suggestion: Add monitoring / observability.
+          - trigger: A new principle has been detected (e.g. TDD).
+            suggestion: Enforce this principle explicitly.
+
+  - id: score
+    name: SCORE
+    goal: Rate every item on three discrete scales.
+    scales:
+      impact_on_harness:
+        values: [high, medium, low]
+        justification: Each value must be backed by a cited session observation.
+      change_cost:
+        values: [low, medium, high]
+        justification: Each value must name the files to modify.
+      direct_improvement:
+        values: [yes, no]
+        definition: >
+          yes when the fix removes the friction, no when it only makes it easier to notice.
+    forbidden:
+      - Numeric scores or ratios. Discrete scales only, to avoid false precision.
+
+  - id: prioritize
+    name: PRIORITIZE
+    goal: Reduce all scored items down to at most one candidate.
+    ordering:
+      method: lexicographic
+      keys:
+        - impact_on_harness, high first
+        - change_cost, low first
+        - direct_improvement, yes first
+    filters:
+      - id: cross_spec_only
+        type: hard
+        keep_if: >
+          The fix targets a shared asset: AGENTS.md, a phase skill file
+          (specify / implement / review), any other skill file, a lint rule,
+          a pre-commit hook, an ADR, or the observability configuration.
+        discard_if: The fix only touches this spec file or the code written for it.
+        decided_on: The target of the fix, never on an assumed generality.
+      - id: at_most_one
+        rule: Keep at most one item.
+
+  - id: suggest
+    name: SUGGEST
+    goal: Deliver the outcome. Write nothing.
+    output_contract:
+      when_one_item:
+        - breakdown_point: what went wrong
+        - category: the classification id
+        - evidence: ts plus quoted line, or command plus exit_code, or log entry
+        - target: the specific file AND section to change, never generic advice
+        - proposed_fix: what to change there
+        - scores: impact, cost, direct improvement, each with its justification
+      when_no_item:
+        - statement: No cross-spec harness improvement identified.
+        - discarded: the items found, each with the filter that removed it
+      note: An empty result is valid and must not be padded.
+```

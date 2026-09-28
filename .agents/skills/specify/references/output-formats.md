@@ -6,7 +6,7 @@ Each phase produces a structured, scannable response. Use these formats exactly 
 
 ## Phase 1 — Understand
 
-```
+```markdown
 ## Phase 1: Understand
 
 **Restatement**
@@ -23,6 +23,7 @@ Confirm, correct, or clarify before we proceed.
 ```
 
 Rules:
+
 - Do NOT proceed to Phase 2 until the user explicitly confirms with a yes/confirm/correct.
 - If corrected, restate and ask again.
 
@@ -30,7 +31,7 @@ Rules:
 
 ## Phase 2 — Discover
 
-```
+```markdown
 ## Phase 2: Discover
 
 **Explored**
@@ -55,6 +56,7 @@ Rules:
 ```
 
 Rules:
+
 - Keep exploration bounded. See Phase 2 heuristics in SKILL.md for depth limits.
 - If nothing relevant is found, say so explicitly — don't fabricate.
 
@@ -62,7 +64,7 @@ Rules:
 
 ## Phase 3 — Probe & Assess
 
-```
+```markdown
 ## Phase 3: Probe & Assess
 
 **Questions** (no cap — continue until ambiguity is resolved and the user confirms understanding; see SKILL.md Phase 3)
@@ -85,6 +87,7 @@ Rules:
 ```
 
 Rules:
+
 - Any 🔴 blocks Phase 4. State the blocker explicitly.
 - L-sized work must be split into ≥2 independent specs before any single spec advances.
 
@@ -92,7 +95,7 @@ Rules:
 
 ## Phase 3.5 — Grill (mandatory)
 
-```
+```markdown
 ## Phase 3.5: Grill
 
 **Decision tree branches**
@@ -109,6 +112,7 @@ Rules:
 ```
 
 Rules:
+
 - Always run — mandatory, never optional (per SKILL.md Phase 3.5). Invoke `/grill-me` directly; do not ask permission.
 - Use Phase 2 findings to make questions sharp and specific.
 - For each question, provide your recommended answer.
@@ -118,36 +122,93 @@ Rules:
 
 ## Phase 4 — Specify
 
-```
+```markdown
 ## Phase 4: Specify
 
 **Spec file**: `docs/backlog/todo/YYYY-MM-DD-<slug>.md`
 
-**Validation result**
-✅ PASSED / ❌ FAILED ([N] issues)
-- [issue list if failed]
+**Drafted sections**
+- `## Why` — [1-line summary]
+- `## What` — [1-line summary]
+- [each content section drafted]
 
-**Quality checklist**
-[N]/5 checked — [list any unchecked item with what's missing in the spec]
-
-**Examples confirmation**
-Please review the examples below and tell me if any scenario is missing:
-- [Example 1 name]
-- [Example 2 name]
-- [Edge case name]
+Next: Phase 4.5 — Human Review, one section at a time.
 ```
 
 Rules:
-- Run `validate-spec.sh` before presenting.
-- Fix all validation issues before asking for example confirmation.
-- Check a quality checklist item ONLY after verifying it against the spec content — never to silence the validator.
+
+- Draft every content section before review — the `## Implementation Plan` is written later, by Phase 5.
+- Cross-section consistency is enforced while authoring (SKILL.md Phase 4 step 3) and re-checked after any Phase 4.5 revision.
 - Present the full spec file content or a link to it.
+
+---
+
+## Phase 4.5 — Human Review (mandatory)
+
+Per-section prompt — one section per message, repeated until ✅:
+
+```markdown
+## Phase 4.5: Human Review — section [N/6]: `## <Section Name>`
+
+**Progress**: ✅ <approved sections> · ▶ <current section> · ○ <pending sections>
+
+---
+
+> [section content — quoted verbatim from the spec, every line prefixed `>`]
+
+---
+
+**Verdict?**
+
+- ✅ **Approve** — section is correct
+- 🔧 **Revise** — tell me what to change
+- ❌ **Reject** — the direction is wrong
+```
+
+Completion — after the last section is approved:
+
+```markdown
+## Phase 4.5: Human Review — complete
+
+All six sections approved ✅
+
+| Section | Verdict |
+|---------|---------|
+| `## Why` | ✅ |
+| `## What` | ✅ |
+| `## What NOT` | ✅ |
+| `## Acceptance Criteria` | ✅ |
+| `## Examples` | ✅ |
+| `## Technical Notes` | ✅ |
+
+---
+
+**Validation**
+✅ PASSED / ❌ FAILED ([N] issues)
+
+**Quality checklist**
+[N]/7 checked — [unchecked item + what's missing in the spec]
+
+---
+
+**Next**: Phase 5 — Implementation Plan, derived from the approved sections.
+```
+
+Rules:
+
+- Always run — mandatory, never optional (per SKILL.md Phase 4.5). Invoke `/human-review-spec` directly; do not ask permission.
+- One section per message — no batch approvals; silence is not approval.
+- Readability: blank line between every block; `---` delimiters around the quoted content so spec text is visually separate from the reviewer's text; progress line in every prompt — ✅ approved · ▶ current · ○ pending (e.g. at section 2: `✅ Why · ▶ What · ○ What NOT · ○ Acceptance Criteria · ○ Examples · ○ Technical Notes`).
+- On 🔧 revise: apply the change, re-present the SAME section, loop until ✅.
+- On ❌ reject: stop the loop and return to Phase 1 with the feedback (guard rail 4).
+- Run `validate-spec.sh` and the Spec Quality Checklist self-review AFTER all sections are approved — that validation is what this phase gates.
+- The `## Examples` review absorbs the old examples-confirmation step: ask explicitly for missing scenarios.
 
 ---
 
 ## Phase 5 — Implementation Plan
 
-```
+```markdown
 ## Phase 5: Implementation Plan
 
 **Plan summary**
@@ -161,6 +222,7 @@ Rules:
 - **How**: [key design decisions, naming, layout]
 - **Validation**: `[command]` → expected: [outcome]
 - **Commit**: `[type](scope): ...`
+- **Refactoring**: `- [ ]` subagent pass — [targets: smells to watch for / planned extractions]
 
 ### 2. [Title]
 ...
@@ -174,8 +236,10 @@ Rules:
 ```
 
 Rules:
+
 - Write the increments into the spec's `## Implementation Plan` section BEFORE presenting — the spec file is the handoff artifact, the chat output is only a mirror.
 - Each increment must be buildable + testable + committable in one cycle.
+- Every increment carries an unchecked `- [ ] **Refactoring**` sub-checkbox (subagent pass, Fowler / Uncle Bob) — implement checks it after the pass; specify never pre-checks it. `validate-spec.sh --require-plan` rejects a plan missing it.
 - Respect dependency order (domain before API, adapter before endpoint).
 - One line per file/action where possible — keep it scannable.
 
@@ -183,7 +247,7 @@ Rules:
 
 ## Phase 6 — Confirm
 
-```
+```markdown
 ## Phase 6: Confirm
 
 **Spec**: [filename]
@@ -203,6 +267,7 @@ Rules:
 ```
 
 Rules:
+
 - Present both the spec and the implementation plan together.
 - If the Go transition fails validation, fix the issues and re-run — do not bypass it.
 - Do NOT implement after approval. Stop.

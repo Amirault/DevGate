@@ -1,6 +1,6 @@
 # Spec Correlation Marker
 
-A stable, greppable token emitted automatically by each spec-phase skill so the workflow adapter can group Warp sessions by spec and order them by phase — deterministically, without heuristics.
+A stable, greppable token emitted automatically by each spec-phase skill so the workflow adapter can group sessions from Warp, Claude Code, or Hermes by spec and order them by phase — deterministically, without heuristics.
 
 ## Format
 
@@ -14,19 +14,21 @@ A stable, greppable token emitted automatically by each spec-phase skill so the 
 
 ## Emission (automatic — the human types nothing)
 
-Each skill, once it has resolved the spec file, runs the marker as a **literal no-op shell command** via `run_shell_command`:
+Each skill, once it has resolved the spec file, runs the marker as a **literal no-op shell command** through the active runtime's shell tool: Warp `run_shell_command`, Claude Code `Bash`, or Hermes `terminal`/`run_shell_command`.
 
 ```
 : SPEC_MARKER v=1 spec_id=2026-06-30-multiquote-limit-5 phase=implement
 ```
 
 Rules:
+
 - **Run it; do not just print it.** The leading `:` is a shell no-op (exit 0, no repo effect).
-- **`spec_id` must be the resolved literal** (e.g. `2026-06-30-multiquote-limit-5`), never a `$(...)` substitution or shell variable. Warp logs the command text as submitted, so substitution would store an unexpanded placeholder and break the adapter's grep.
+- **Run it as its own shell call** — the whole command is the marker line alone: no `cd` prefix, no `;`/`&&` chaining, nothing after it. The no-op needs no working directory, so never `cd` for it. Warp and Hermes only bind a command that _starts_ with `: SPEC_MARKER`; the Claude Code adapter tolerates a marker chained on the first line (`cd … ; : SPEC_MARKER …`) as a recovery path, not as a way to emit it.
+- **`spec_id` must be the resolved literal** (e.g. `2026-06-30-multiquote-limit-5`), never a `$(...)` substitution or shell variable. Each adapter matches submitted command text, so a placeholder breaks correlation.
 - **Emit once per session**, as early as possible after the spec file is known.
 - Re-runs (a second implement sitting, a re-gate) emit the same `spec_id` again from a new conversation. The adapter collects them all and orders by `start_ts` — no dedup, no state.
 
-## Where it lands (verified)
+## Where it lands in Warp (verified)
 
 The agent-executed no-op command is recorded in two tables, joined by an exact `start_ts`:
 
@@ -40,6 +42,7 @@ So one emission yields **marker text (clean, in `commands`) + conversation bindi
 Substitute the real `spec_id`. The `: SPEC_MARKER` anchor avoids false positives from any text that merely mentions the marker (e.g. diagnostic scripts):
 
 1. Distinct conversations per spec (≥3 once all three phases have run):
+
 ```sql
 SELECT DISTINCT json_extract(b.ai_metadata, '$.conversation_id') AS conversation_id
 FROM commands c
@@ -48,6 +51,7 @@ WHERE c.command LIKE ': SPEC_MARKER%spec_id=2026-06-30-multiquote-limit-5%';
 ```
 
 2. Ordered marker emissions for a spec (phase timeline):
+
 ```sql
 SELECT json_extract(b.ai_metadata, '$.conversation_id') AS conversation_id,
        c.start_ts, c.command
@@ -58,6 +62,7 @@ ORDER BY c.start_ts;
 ```
 
 3. All three phase values appear:
+
 ```sql
 SELECT DISTINCT CASE
   WHEN c.command LIKE '%phase=specify%' THEN 'specify'
@@ -70,11 +75,12 @@ WHERE c.command LIKE ': SPEC_MARKER%multiquote-limit-5%';
 
 If queries 1–3 pass for one spec, the adapter can build a complete, correctly ordered bundle for any spec by `spec_id` alone.
 
-## Subagent coverage (known gap)
+## Warp subagent coverage (known gap)
 
 `parent_conversation_id` does **not** exist in the Warp schema. `agent_conversations.conversation_data` carries only `server_conversation_token`, `conversation_usage_metadata`, `run_id`, `autoexecute_override` — no parent reference. So the adapter cannot expand a seed conversation to its subagents via a parent link.
 
 The marker captures the three top-level phase conversations. Subagent conversations (spawned programmatically, which do not run the skill) must be pulled in by a separate, fallback-based expansion step. Available linkages:
+
 - `terminal_panes.conversation_ids` (JSON list) and `terminal_panes.active_conversation_id` — group sessions sharing a terminal pane.
 - `pane_nodes.parent_pane_node_id` — pane-tree ancestry (a subagent pane may be a child of the orchestrator's pane).
 - `blocks.ai_metadata.subagent_task_id` — tags blocks produced under a subagent task within a parent conversation.
@@ -84,6 +90,7 @@ Expansion strategy: grep the marker for seed `conversation_id`s per spec → exp
 ## Smoke-test confirmation (single session)
 
 Emitted `: SPEC_MARKER v=1 spec_id=smoke-test-spec phase=specify` via `run_shell_command`. Verified:
+
 - `commands.command` captured the clean marker text (`is_agent_executed = 1`, real-time).
 - A `blocks` row was created with `ai_metadata.conversation_id` = the emitting session's conversation id, sharing the command's `start_ts` exactly (1:1).
 - Acceptance query 1 returned that conversation id.

@@ -129,7 +129,7 @@ function collapseGroup(group: readonly NamedNode[]): CollapsedNode {
   const collapsed: CollapsedNode = {
     ...group[0]!,
     field_path: `messages.${kind}`,
-    value: summarize(fields, skills),
+    value: summarizeCollapsedNode(fields, skills),
   };
   if (toolNode?.tool !== undefined) collapsed.tool = toolNode.tool;
   if (toolCallId !== undefined) collapsed.tool_call_id = toolCallId;
@@ -158,7 +158,10 @@ function addField(fields: Record<string, string | string[]>, rel: string, value:
   }
 }
 
-function summarize(fields: Record<string, string | string[]>, skills: SkillSummary[]): string {
+export function summarizeCollapsedNode(
+  fields: Record<string, string | string[]>,
+  skills: SkillSummary[]
+): string {
   const parts = Object.keys(fields).length > 0 ? [JSON.stringify(fields)] : [];
   if (skills.length > 0) {
     const names = skills.map((s) => s.path ?? s.name ?? "?").join(", ");

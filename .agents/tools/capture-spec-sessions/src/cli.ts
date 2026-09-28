@@ -23,7 +23,7 @@ interface CliArgs {
   list: boolean;
   dbPath?: string;
   hermesDbPath?: string;
-  source: CliSource;
+  source?: CliSource;
   claudeRoot?: string;
   backlogRoot: string;
 }
@@ -41,7 +41,7 @@ function safeParseNodeArgs(argv: string[]) {
         list: { type: "boolean", default: false },
         "db-path": { type: "string" },
         "hermes-db-path": { type: "string" },
-        source: { type: "string", default: "warp" },
+        source: { type: "string" },
         "claude-root": { type: "string" },
         "backlog-root": { type: "string" },
         help: { type: "boolean", short: "h", default: false },
@@ -67,7 +67,7 @@ function parseArgs(argv: string[]): CliArgs {
     process.exit(0);
   }
 
-  const source = parseSource(values.source);
+  const source = values.source === undefined ? undefined : parseSource(values.source);
 
   return {
     spec: values.spec,
@@ -83,8 +83,8 @@ function parseArgs(argv: string[]): CliArgs {
   };
 }
 
-function parseSource(value: string | undefined): CliSource {
-  if (value === undefined || value === "warp") return "warp";
+function parseSource(value: string): CliSource {
+  if (value === "warp") return "warp";
   if (value === "claude-code") return "claude-code";
   if (value === "hermes") return "hermes";
   console.error(
@@ -95,11 +95,11 @@ function parseSource(value: string | undefined): CliSource {
 }
 
 function printUsage(): void {
-  console.error(`usage: tsx src/cli.ts --spec <slug> [--source warp|claude-code|hermes] [--complete-only] [--no-merge] [--out dir] [--db-path path] [--claude-root dir] [--hermes-db-path path]
+  console.error(`usage: tsx src/cli.ts --spec <slug> --source warp|claude-code|hermes [--complete-only] [--no-merge] [--out dir] [--db-path path] [--claude-root dir] [--hermes-db-path path]
        tsx src/cli.ts --list [--backlog-root dir]`);
 }
 
-function readerFor(args: CliArgs): ConversationReader {
+function readerFor(args: CliArgs & { source: CliSource }): ConversationReader {
   if (args.source === "claude-code") {
     return new ClaudeCodeTranscriptReader({ rootDir: args.claudeRoot });
   }
@@ -120,7 +120,8 @@ function readerFor(args: CliArgs): ConversationReader {
 function loadExistingBundle(
   specId: string,
   outDir: string,
-  noMerge: boolean
+  noMerge: boolean,
+  source: CliSource
 ): { existingBundle: SpecBundle | null; replacedExisting: boolean } {
   const bundleReader = new JsonlBundleReader(outDir);
   if (!bundleReader.exists(specId)) {
@@ -148,6 +149,15 @@ function loadExistingBundle(
     );
     process.exit(1);
   }
+  if (loaded && loaded.header.source !== source) {
+    console.error(
+      `error: existing bundle source mismatch: file has "${loaded.header.source}", run requested "${source}"`
+    );
+    console.error(
+      `refusing to merge "${bundleReader.pathFor(specId)}" across sources — re-run with --no-merge to replace it.`
+    );
+    process.exit(1);
+  }
   return { existingBundle: loaded, replacedExisting: false };
 }
 
@@ -170,14 +180,24 @@ function main(): void {
     process.exit(2);
   }
 
+  const source = args.source;
+  if (!source) {
+    console.error(
+      'error: --source is required for extraction ("warp", "claude-code", or "hermes")'
+    );
+    printUsage();
+    process.exit(2);
+  }
+
   const outDir = args.out ?? "out";
   const { existingBundle, replacedExisting } = loadExistingBundle(
     args.spec,
     outDir,
-    args.noMerge
+    args.noMerge,
+    source
   );
 
-  const reader = readerFor(args);
+  const reader = readerFor({ ...args, source });
   let result: ExtractResult;
   try {
     result = extractSpecBundle(reader, args.spec, {

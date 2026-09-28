@@ -2,7 +2,7 @@
 # status: specifying | ready-to-implement | on-hold | implementation-in-progress | implemented | done | rejected
 status: specifying
 project: {{ target project(s) }}
-created_at: {{ YYYY-MM-DD HH:MM }}
+created_at: {{ YYYY-MM-DDTHH:MM:SSZ }}
 approved_at:
 started_at:
 implemented_at:
@@ -17,9 +17,11 @@ origin_spec:
 # Spec: {{ Title }}
 
 ## Why
+
 {{ Problem statement — 2-3 sentences. What's the real problem and who is affected? }}
 
 ## What
+
 {{ Description of the change. What exactly are we doing? }}
 
 ## Acceptance Criteria
@@ -37,39 +39,49 @@ origin_spec:
 <!-- The agent must spot areas where examples are needed and propose them. -->
 
 ### Example 1: {{ descriptive name }}
+
 - **Context**: {{ initial state / setup with real-looking data }}
 - **Action**: {{ what happens }}
 - **Result**: {{ expected outcome }}
 
 ### Example 2: {{ descriptive name }}
+
 - **Context**: {{ initial state / setup with real-looking data }}
 - **Action**: {{ what happens }}
 - **Result**: {{ expected outcome }}
 
 ### Example 3 (edge case): {{ descriptive name }}
+
 - **Context**: {{ edge case setup with real-looking data }}
 - **Action**: {{ what happens }}
 - **Result**: {{ expected outcome }}
 
 ## What NOT (explicit exclusions)
+
 - We are NOT doing {{ X }}
 - We are NOT changing {{ Y }}
 
 ## Implementation Plan
 <!-- Written by specify Phase 5 BEFORE approval. This is the handoff artifact: the implement
      skill executes these increments in order and checks each one off after build + tests pass.
-     Each increment: What (files), How (decisions), Validation (build/test), Commit scope.
+     Each increment: What (files), How (decisions), Validation (build/test), Commit scope, and
+     a Refactoring checkbox — the increment's refactoring phase: a subagent pass applying
+     `.agents/skills/refactoring/SKILL.md` (Fowler's catalog, SOLID, Uncle Bob) to the files
+     the increment changed. specify leaves it unchecked; implement checks it only after the
+     pass, so review can verify every increment ended refactored.
      Approval (transition to ready-to-implement) is blocked until this section is filled. -->
 - [ ] Increment 1: {{ short title }}
   - **What**: {{ files to create/modify/delete }}
   - **How**: {{ key design decisions, naming, layout }}
   - **Validation**: {{ build/test command }} → {{ expected outcome }}
   - **Commit**: {{ type(scope): message }}
+  - [ ] **Refactoring**: {{ subagent pass — targets for this increment: smells to watch for, planned extractions, or "none anticipated" with why }} — checked by implement
 - [ ] Increment 2: {{ short title }}
   - **What**: {{ files to create/modify/delete }}
   - **How**: {{ key design decisions, naming, layout }}
   - **Validation**: {{ build/test command }} → {{ expected outcome }}
   - **Commit**: {{ type(scope): message }}
+  - [ ] **Refactoring**: {{ subagent pass — targets for this increment }} — checked by implement
 
 ## Follow-up
 <!-- If this task is part of a larger split, list the sequence here -->
@@ -78,6 +90,7 @@ origin_spec:
 - [ ] Task 3: [title](./YYYY-MM-DD-slug.md) — depends on Task 1, 2
 
 ## Technical Notes
+
 - Files likely affected: {{ list }}
 - Dependencies: {{ list }}
 - Risks: {{ list }}
@@ -87,35 +100,39 @@ origin_spec:
      (date, what changed, why, who approved) — use this INSTEAD of silently editing Acceptance
      Criteria or Examples. Acceptance Criteria/Examples are immutable once ready-to-implement:
      supersede the old text with ~~strikethrough~~ + a pointer to the relevant entry below. -->
-- {{ YYYY-MM-DD }} — {{ what changed (e.g. "removed vuln-scan gate from AC #3") }} — {{ why }} — approved by {{ who }}
+- {{ YYYY-MM-DDTHH:MM:SSZ }} — {{ what changed (e.g. "removed vuln-scan gate from AC #3") }} — {{ why }} — approved by {{ who }}
 
 ## Open Questions
+
 - [ ] {{ question 1 }}
 - [ ] {{ question 2 }}
 
 ## Spec Quality Checklist
 <!-- Author self-review. specify verifies each item against the actual spec content during
-     Phase 4 and checks it off ONLY when true — fix the spec first otherwise.
+     Phase 4.5 and checks it off ONLY when true — fix the spec first otherwise.
      Approval (transition to ready-to-implement) is blocked while any box is unchecked. -->
 - [ ] Problem statement is clear and tied to a real user or system need
 - [ ] Scope boundaries are explicit (what is in, what is out)
 - [ ] Acceptance criteria cover happy path, edge cases, and failure modes
 - [ ] Examples use realistic data and are mapped to criteria
 - [ ] Every external reference (cloud IDs, linked docs, origin_spec) is verified against its live source, not assumed
+- [ ] Cross-section consistency: `## What NOT` items do not appear in `## Technical Notes`, `## Implementation Plan`, or `## Health Check`
 - [ ] Health Check has no 🔴 scores
 
 ## Implementation Rules
+
 - Follow this spec strictly — it is the single source of truth for this task
 - If you discover something not covered by this spec, STOP and ask the user; write the resolution back into this spec before continuing
 - Do NOT expand scope beyond what this spec says
 - Refer to "What NOT" section to avoid scope creep
 - Acceptance Criteria and Examples are immutable once a spec is `ready-to-implement`. If an approved criterion or example must change during implementation, do NOT rewrite or delete it — mark the superseded text with `~~strikethrough~~` and a pointer to the new `## Implementation Log` entry that explains the change and who approved it.
 - When the human starts implementation, the implement skill transitions this spec to `implementation-in-progress` and moves it to `docs/backlog/in-progress/`
-- The implement skill checks off each Implementation Plan increment after its build + tests pass
+- The implement skill checks off each Implementation Plan increment after its build + tests pass, and each increment's **Refactoring** checkbox after its subagent refactoring pass (`.agents/skills/refactoring/SKILL.md` — Fowler, Uncle Bob)
 - When review passes, it transitions this spec to `implemented` (stays in `in-progress/`)
 - When the human says DONE, the review transitions this spec to `done` and moves it to `docs/backlog/done/`
 
 ## Health Check
+
 | Dimension | Score | Notes |
 |-----------|-------|-------|
 | WHY       | {{ 🟢🟡🔴 }} | {{ notes }} |

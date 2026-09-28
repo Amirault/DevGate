@@ -51,5 +51,7 @@ export interface SpecRead {
   skipped: SkippedRow[];
   unbindable: SeedMatch[];
   collisions: SeedMatch[];
+  /** Seeds bound via the ai_queries temporal-proximity fallback (local orchestrated subagents). */
+  heuristic_bindings: SeedMatch[];
 }
 

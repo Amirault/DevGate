@@ -14,10 +14,22 @@ function baseSummary(overrides: Partial<RunSummary> = {}): RunSummary {
     phases_missing: [],
     unbindable: [],
     collisions: [],
+    heuristic_bindings: [],
     skipped_rows: [],
     fresh_read_error: null,
     output_path: null,
     ...overrides,
+  };
+}
+
+function heuristicMarker(phase: SeedMatch["phase"], start_ts: string): SeedMatch {
+  return {
+    conversation_id: "c-heuristic",
+    phase,
+    marker_command: `: SPEC_MARKER v=1 spec_id=${SPEC} phase=${phase}`,
+    start_ts,
+    status: "bound",
+    confidence: "heuristic",
   };
 }
 
@@ -103,6 +115,26 @@ describe("§9.13 formatRunReport — CLI diagnostics", () => {
     expect(joined).toContain("review");
     expect(joined.toLowerCase()).not.toContain("binding");
     expect(joined).not.toContain("--list");
+  });
+
+  it("Given a heuristic-bound marker (local orchestrated subagent), When formatted, Then the warning names the phase, timestamp, and fallback strategy", () => {
+    // Given
+    const summary = baseSummary({
+      heuristic_bindings: [heuristicMarker("implement", "2026-09-11 02:58:24.952686")],
+    });
+    const outPath = "out/add-feature-x.jsonl";
+
+    // When
+    const report = formatRunReport(summary, outPath);
+
+    // Then
+    expect(report.exitCode).toBe(0);
+    expect(report.stdout[0]).toContain("wrote");
+    const joined = report.stderr.join("\n");
+    expect(joined).toContain("heuristic binding");
+    expect(joined).toContain("phase=implement");
+    expect(joined).toContain("2026-09-11 02:58:24.952686");
+    expect(joined.toLowerCase()).toContain("ai_queries");
   });
 
   it("Given a written bundle alongside an unbindable marker and a collision, When formatted, Then it still succeeds but every anomaly is detailed instead of a bare count", () => {

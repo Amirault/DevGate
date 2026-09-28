@@ -13,6 +13,65 @@ const ROOT = path.resolve(TEST_DIR, "..", "..");
 const TSX = path.join(ROOT, "node_modules", ".bin", "tsx");
 const SPEC = "add-feature-x";
 
+describe("CLI source selection", () => {
+  it("Given a spec extraction without --source, When the CLI runs, Then it fails before reading or writing a bundle", () => {
+    // Given
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "capture-source-required-"));
+    const outDir = path.join(tmp, "out");
+    const outPath = path.join(outDir, `${SPEC}.jsonl`);
+    const sentinel = "existing bundle must not be read or overwritten\n";
+    fs.mkdirSync(outDir, { recursive: true });
+    fs.writeFileSync(outPath, sentinel, "utf8");
+
+    try {
+      // When
+      const result = spawnSync(
+        TSX,
+        ["src/cli.ts", "--spec", SPEC, "--out", outDir],
+        {
+          cwd: ROOT,
+          encoding: "utf8",
+          timeout: 30000,
+        }
+      );
+
+      // Then
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain(
+        'error: --source is required for extraction ("warp", "claude-code", or "hermes")'
+      );
+      expect(fs.readFileSync(outPath, "utf8")).toBe(sentinel);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("Given --list without --source, When the CLI runs, Then source selection is not required", () => {
+    // Given
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "capture-list-no-source-"));
+
+    try {
+      // When
+      const result = spawnSync(
+        TSX,
+        ["src/cli.ts", "--list", "--backlog-root", tmp],
+        {
+          cwd: ROOT,
+          encoding: "utf8",
+          timeout: 30000,
+        }
+      );
+
+      // Then
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("No specs found");
+      expect(result.stderr).not.toContain("--source is required");
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("§9.10 end-to-end (CLI -> snapshot adapter -> use-case -> sink)", () => {
   let tmp: string;
   let dbPath: string;
@@ -46,7 +105,7 @@ describe("§9.10 end-to-end (CLI -> snapshot adapter -> use-case -> sink)", () =
     db.close();
 
     // When — run the actual CLI against the fixture DB
-    const stdout = execSync(`"${TSX}" src/cli.ts --spec ${SPEC} --db-path "${dbPath}" --out "${outDir}"`, {
+    const stdout = execSync(`"${TSX}" src/cli.ts --spec ${SPEC} --source warp --db-path "${dbPath}" --out "${outDir}"`, {
       cwd: ROOT,
       encoding: "utf8",
       timeout: 30000,
@@ -67,6 +126,7 @@ describe("§9.10 end-to-end (CLI -> snapshot adapter -> use-case -> sink)", () =
     const header = parsed[0]!;
     expect(header.type).toBe("bundle_header");
     expect(header.spec_id).toBe(SPEC);
+    expect(header.source).toBe("warp");
     expect(header.complete).toBe(true);
     expect(header.phases_present).toEqual(["specify", "implement", "review"]);
     expect(header.phases_missing).toEqual([]);
@@ -117,7 +177,7 @@ describe("§9.18 end-to-end merge + guards", () => {
     stderr: string;
     exitCode: number;
   } {
-    const result = spawnSync(TSX, ["src/cli.ts", "--spec", SPEC, "--db-path", dbPath, "--out", outDir, ...extraArgs], {
+    const result = spawnSync(TSX, ["src/cli.ts", "--spec", SPEC, "--source", "warp", "--db-path", dbPath, "--out", outDir, ...extraArgs], {
       cwd: ROOT,
       encoding: "utf8",
       timeout: 30000,
@@ -151,6 +211,51 @@ describe("§9.18 end-to-end merge + guards", () => {
     expect(events.some((e) => e.phase === "specify")).toBe(true);
     const keys = events.map((e) => `${e.conversation_id}:${e.ts}:${e.kind}:${e.content}`);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("Given two captures of one task row with different last_modified_at values, When merged, Then the task event is not duplicated and keeps the earlier timestamp", () => {
+    // Given
+    const task = encodeString(1, "same task event");
+    const firstDbPath = path.join(tmp, "task-first.sqlite");
+    const firstDb = createFixture(firstDbPath);
+    seedMarker(firstDb, {
+      spec_id: SPEC,
+      phase: "review",
+      conversation_id: "c1",
+      start_ts: "2026-06-30 08:00:00.000000",
+    });
+    seedTask(firstDb, {
+      conversation_id: "c1",
+      task_id: "stable-task",
+      task,
+      last_modified_at: "2026-06-30 09:00:00.000000",
+    });
+    firstDb.close();
+
+    const secondDbPath = path.join(tmp, "task-second.sqlite");
+    const secondDb = createFixture(secondDbPath);
+    seedMarker(secondDb, {
+      spec_id: SPEC,
+      phase: "review",
+      conversation_id: "c1",
+      start_ts: "2026-06-30 08:00:00.000000",
+    });
+    seedTask(secondDb, {
+      conversation_id: "c1",
+      task_id: "stable-task",
+      task,
+      last_modified_at: "2026-06-30 10:00:00.000000",
+    });
+    secondDb.close();
+    runCli(firstDbPath);
+
+    // When
+    runCli(secondDbPath);
+
+    // Then
+    const taskEvents = readBundle().events.filter((event) => event.content === "same task event");
+    expect(taskEvents).toHaveLength(1);
+    expect(taskEvents[0]!.ts).toBe("2026-06-30 09:00:00.000000");
   });
 
   it("Given an existing bundle and --no-merge, When the CLI runs, Then the existing bundle is replaced with a fresh write and a warning is emitted", () => {
@@ -193,6 +298,63 @@ describe("§9.18 end-to-end merge + guards", () => {
     expect(result.stderr).toContain("fresh read failed");
     const { header } = readBundle();
     expect(header.phases_present).toEqual(["specify"]);
+  });
+
+  it("Given an existing bundle from another source, When the CLI runs, Then it refuses to merge sources and does not overwrite", () => {
+    // Given
+    fs.mkdirSync(outDir, { recursive: true });
+    const outPath = path.join(outDir, `${SPEC}.jsonl`);
+    const foreignHeader = JSON.stringify({
+      type: "bundle_header",
+      spec_id: SPEC,
+      phases_present: ["specify"],
+      phases_missing: ["implement", "review"],
+      conversations_per_phase: { specify: 1, implement: 0, review: 0 },
+      complete: false,
+      conversation_ids: ["hermes-c1"],
+      extracted_at: "2026-07-29T00:00:00.000Z",
+      source: "hermes",
+    });
+    fs.writeFileSync(outPath, `${foreignHeader}\n`, "utf8");
+
+    // When
+    const result = runCli(fixtureDbWithPhase("specify", "warp-c1"));
+
+    // Then
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain("bundle source mismatch");
+    expect(result.stderr).toContain("--no-merge");
+    expect(fs.readFileSync(outPath, "utf8")).toBe(`${foreignHeader}\n`);
+  });
+
+  it("Given an existing bundle from another source and --no-merge, When the CLI runs, Then it replaces the bundle with the requested source", () => {
+    // Given
+    fs.mkdirSync(outDir, { recursive: true });
+    const outPath = path.join(outDir, `${SPEC}.jsonl`);
+    const foreignHeader = JSON.stringify({
+      type: "bundle_header",
+      spec_id: SPEC,
+      phases_present: ["review"],
+      phases_missing: ["specify", "implement"],
+      conversations_per_phase: { specify: 0, implement: 0, review: 1 },
+      complete: false,
+      conversation_ids: ["hermes-c1"],
+      extracted_at: "2026-07-29T00:00:00.000Z",
+      source: "hermes",
+    });
+    fs.writeFileSync(outPath, `${foreignHeader}\n`, "utf8");
+
+    // When
+    const result = runCli(fixtureDbWithPhase("specify", "warp-c1"), ["--no-merge"]);
+
+    // Then
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toContain("replacing existing bundle");
+    const { header } = readBundle();
+    expect(header.source).toBe("warp");
+    expect(header.phases_present).toEqual(["specify"]);
+    expect(header.conversation_ids).toEqual(["warp-c1"]);
+    expect(fs.readFileSync(outPath, "utf8")).not.toBe(`${foreignHeader}\n`);
   });
 
   it("Given an existing bundle with a mismatched spec_id, When the CLI runs (default merge), Then it errors loudly and does not overwrite", () => {
