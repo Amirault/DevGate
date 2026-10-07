@@ -17,7 +17,7 @@ asset_path: .agents/skills/git-commit/SKILL.md
 asset_section: Fresh worktree
 symptom: git commit blocked in a fresh worktree because direnv was not allowed
 status: fixed
-fixed_by: learning/2026-10-02-zonier-es-postgres-search-2
+fixed_by: learning/2026-10-02-add-search-endpoint-2
 fix_target: .agents/skills/git-commit/SKILL.md#Fresh worktree
 fix_why: document direnv allow
 fixed_at: 2026-10-05
@@ -27,7 +27,7 @@ backfilled: true
 
 ## Occurrences
 
-- spec=2026-10-02-zonier-es-postgres-search increment=2 date=2026-10-05 evidence="exit_code 1 on git commit"
+- spec=2026-10-02-add-search-endpoint increment=2 date=2026-10-05 evidence="exit_code 1 on git commit"
 ```
 
 - Front matter is flat `key: value`, one line per key, no YAML library.

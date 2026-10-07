@@ -1,12 +1,12 @@
 # Secondary adapter test — TestContainers example
 
-Worked example for the rule in `SKILL.md` → _Secondary adapters — TestContainers_ (xUnit + PostgreSQL + EF Core, from PricingReleaseManagement).
+Worked example for the rule in `SKILL.md` → _Secondary adapters — TestContainers_ (xUnit + PostgreSQL + EF Core, from ReleaseManagement).
 
 ```csharp
 public class PartnershipSavingAdapterTests : IAsyncLifetime
 {
     private PostgreSqlContainer _dbContainer;
-    private PricingReleaseManagementDbContext _dbContext;
+    private ReleaseManagementDbContext _dbContext;
     private PartnershipSavingAdapter _partnershipSavingAdapter;
 
     public async Task InitializeAsync()
@@ -14,8 +14,8 @@ public class PartnershipSavingAdapterTests : IAsyncLifetime
         _dbContainer = new PostgreSqlBuilder().WithImage("postgres:15.1").Build();
         await _dbContainer.StartAsync();
 
-        _dbContext = new PricingReleaseManagementDbContext(
-            new DbContextOptionsBuilder<PricingReleaseManagementDbContext>()
+        _dbContext = new ReleaseManagementDbContext(
+            new DbContextOptionsBuilder<ReleaseManagementDbContext>()
                 .UseNpgsql(_dbContainer.GetConnectionString()).Options);
         await _dbContext.Database.MigrateAsync();
 
