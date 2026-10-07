@@ -17,7 +17,7 @@ flowchart LR
     Pre["Pre-check\nExisting spec?"] --> P1["Phase 1\nUnderstand"]
     P1 --> P2["Phase 2\nDiscover"]
     P2 --> P3["Phase 3\nProbe & Assess"]
-    P3 --> P3_5["Phase 3.5\nGrill (optional)"]
+    P3 --> P3_5["Phase 3.5\nGrill"]
     P3_5 --> P4["Phase 4\nSpecify"]
     P4 --> P5["Phase 5\nImpl Plan"]
     P5 --> P6["Phase 6\nConfirm"]
@@ -47,21 +47,20 @@ Explore the codebase: related code paths, docs, overlapping specs, impacted beha
 
 ### Phase 3 — Probe & Assess
 
-Ask clarifying questions (max 3 per round) covering why, what, size, risk, and gaps. Then produce a health assessment:
+Ask clarifying questions covering why, what, increments, risk, and gaps. Then produce a health assessment:
 
-| Dimension | Score  | Meaning                   |
-| --------- | ------ | ------------------------- |
-| WHY       | 🟢🟡🔴 | Problem clarity           |
-| WHAT      | 🟢🟡🔴 | Change clarity            |
-| SIZE      | 🟢🟡🔴 | Scope estimate (XS/S/M/L) |
-| RISK      | 🟢🟡🔴 | Risk level                |
-| GAPS      | 🟢🟡🔴 | Missing information       |
+| Dimension | Score  | Meaning             |
+| --------- | ------ | ------------------- |
+| WHY       | 🟢🟡🔴 | Problem clarity     |
+| WHAT      | 🟢🟡🔴 | Change clarity      |
+| RISK      | 🟢🟡🔴 | Risk level          |
+| GAPS      | 🟢🟡🔴 | Missing information |
 
-**Blocking rules**: Any 🔴 blocks Phase 4. L-sized work must be split into ≥2 independent specs.
+**Blocking rules**: Any 🔴 blocks Phase 4. There is no size and no split: the spec covers the whole need, and a big need gets more increments.
 
-### Phase 3.5 — Grill (optional)
+### Phase 3.5 — Grill
 
-Offer to run `/grill-me` to stress-test decisions before writing the spec. Uses Phase 2 codebase context to ask sharp, specific questions. Skipped for XS/S specs with 🟢 across all dimensions.
+Run `/grilling` to stress-test decisions before writing the spec. Uses Phase 2 codebase context to ask sharp, specific questions, including whether each increment has a clear goal and ships alone as its own pull request.
 
 ### Phase 4 — Specify
 
@@ -76,12 +75,16 @@ Create or update a spec file in `docs/backlog/todo/` using `create-spec.sh`. Fil
 
 ### Phase 5 — Implementation Plan
 
-Derive a step-by-step plan from the spec. Each increment specifies:
+Derive a step-by-step plan from the spec. Each increment is a slice of the need with one clear goal, delivered as its own pull request. Each increment specifies:
 
+- **Goal**: what changes once its pull request is merged, readable by a reviewer without the code
 - **What**: files to create/modify/delete
-- **How**: design decisions, naming, layout
-- **Validation**: build/test command and expected outcome
-- **Commit**: conventional commit message draft
+- **How**: design decisions, naming, layout — precise enough for an agent to implement and review without guessing
+- **Validation**: the full harness (`references/harness.md`) → green, never a filtered test run
+- **Commit**: conventional commit message draft, also the pull request title
+- **Refactoring**: the bare `- [ ] **Refactoring**: subagent pass` line — requested, never described
+
+Each increment is shippable alone, passes the full harness alone and leaves no dead code. A preparatory refactoring is its own described increment; post-deploy checks go to `## Rollout observation`.
 
 The plan is written into the spec file (the handoff artifact) and mirrored in the conversation.
 
@@ -109,20 +112,20 @@ stateDiagram-v2
     ready_to_implement --> specifying : Reopen
     on_hold --> specifying : Resume
     rejected --> specifying : Resurrect
-    ready_to_implement --> implementation_in_progress : implement skill starts
-    implementation_in_progress --> implemented : review passes
-    implemented --> done : Human confirms DONE
+    ready_to_implement --> implementation_in_progress : first increment delivered
+    implementation_in_progress --> implemented : last increment review passes
+    implemented --> done : every PR merged, human confirms DONE
 ```
 
-| Status                       | Directory                   | Meaning                                     |
-| ---------------------------- | --------------------------- | ------------------------------------------- |
-| `specifying`                 | `docs/backlog/todo/`        | Draft or refinement in progress             |
-| `ready-to-implement`         | `docs/backlog/todo/`        | Approved AND validated, awaiting work start |
-| `on-hold`                    | `docs/backlog/todo/`        | Deferred                                    |
-| `implementation-in-progress` | `docs/backlog/in-progress/` | Work started                                |
-| `implemented`                | `docs/backlog/in-progress/` | Implementation complete, awaiting sign-off  |
-| `done`                       | `docs/backlog/done/`        | Human confirmed done                        |
-| `rejected`                   | `docs/backlog/rejected/`    | Won't do (can be resurrected)               |
+| Status                       | Directory                   | Meaning                                                |
+| ---------------------------- | --------------------------- | ------------------------------------------------------ |
+| `specifying`                 | `docs/backlog/todo/`        | Draft or refinement in progress                        |
+| `ready-to-implement`         | `docs/backlog/todo/`        | Approved AND validated, awaiting work start            |
+| `on-hold`                    | `docs/backlog/todo/`        | Deferred                                               |
+| `implementation-in-progress` | `docs/backlog/in-progress/` | Increments being delivered, one pull request each      |
+| `implemented`                | `docs/backlog/in-progress/` | Every increment delivered, awaiting merge and sign-off |
+| `done`                       | `docs/backlog/done/`        | Human confirmed done                                   |
+| `rejected`                   | `docs/backlog/rejected/`    | Won't do (can be resurrected)                          |
 
 ## Scripts
 
@@ -143,13 +146,11 @@ stateDiagram-v2
 ├── SKILL.md                        # Skill definition and process
 ├── docs/
 │   └── README.md                   # This file
-├── evals/
-│   ├── evals.json                  # Eval prompts and assertions
-│   ├── run-eval.sh                 # Baseline record/compare helper
-│   └── baseline/
-│       └── benchmark.json          # Baseline snapshot (100% pass rate)
 ├── references/
-│   └── output-formats.md           # Phase output format specifications
+│   ├── harness.md                  # What the full harness is and how to run it
+│   ├── implementation-plan.md      # Rules for the Implementation Plan (increments)
+│   ├── output-formats.md           # Phase output format specifications
+│   └── spec-marker.md              # Spec correlation marker
 ├── scripts/
 │   ├── create-spec.sh
 │   ├── validate-spec.sh
@@ -157,70 +158,6 @@ stateDiagram-v2
 └── templates/
     └── spec-template.md
 ```
-
-## Regression Protection
-
-The skill has an eval suite that detects behavioral regressions. After any change to the skill, run the evals to verify nothing broke.
-
-### What the evals cover
-
-| Eval | Focus                                | Assertions | Type                                           |
-| ---- | ------------------------------------ | ---------- | ---------------------------------------------- |
-| 1    | Full Phase 1–6 flow                  | 12         | Positive — correct behavior                    |
-| 2    | Manual-only trigger guard            | 4          | Negative — "fix" keyword must NOT auto-trigger |
-| 3    | Pre-check routing for existing specs | 10         | Positive — pre-check + normal flow             |
-
-**Total: 26 assertions** across 3 evals.
-
-### Running evals
-
-Tell the Oz agent **"run specify evals"**. The agent will:
-
-1. Spawn subagents for each eval (one with the skill, one without for baseline)
-2. Grade outputs against the assertions in `evals/evals.json`
-3. Compare with_skill pass rate against the baseline in `evals/baseline/benchmark.json`
-
-### Using run-eval.sh
-
-The helper script sets up directories and displays the eval summary:
-
-```bash
-# First time: record the baseline
-./evals/run-eval.sh --record-baseline
-
-# After changes: compare against baseline
-./evals/run-eval.sh --compare
-```
-
-**Note**: The actual subagent execution requires the Oz agent orchestration. `run-eval.sh` prepares the structure; say **"run specify evals"** to execute the full evaluation.
-
-### Interpreting results
-
-- **with_skill pass rate = 1.0** → no regression
-- **with_skill pass rate < 1.0** → regression detected — investigate before merging
-- **without_skill pass rate** serves as a control — it shows what happens without the skill (expected: lower on positive evals, same on negative evals)
-
-### Current baseline
-
-| Eval              | with_skill   | without_skill | Delta              |
-| ----------------- | ------------ | ------------- | ------------------ |
-| 1 (full flow)     | 12/12 (100%) | 4/12 (33%)    | +67%               |
-| 2 (trigger guard) | 4/4 (100%)   | 4/4 (100%)    | 0% (negative test) |
-| 3 (pre-check)     | 10/10 (100%) | 1/10 (10%)    | +90%               |
-
-### Updating the baseline
-
-After intentionally changing skill behavior (e.g., adding a new phase):
-
-1. Run the evals: **"run specify evals"**
-2. Verify the new results are intentional
-3. Update the baseline snapshot:
-
-   ```bash
-   cp specify-workspace/iteration-N/benchmark.json evals/baseline/benchmark.json
-   ```
-
-4. Commit the updated baseline
 
 ## Guard Rails
 
@@ -231,6 +168,6 @@ After intentionally changing skill behavior (e.g., adding a new phase):
 
 ## Integration with Other Skills
 
-- **grill-me**: Optional Phase 3.5 stress-test of decisions before spec writing
-- **review**: After implementation, validates spec alignment, test coverage, and build status
-- **implement skill**: Executes the Implementation Plan from the approved spec in a fresh session
+- **grilling**: Phase 3.5 stress-test of decisions before spec writing
+- **review**: Reviews each increment before it is committed; the last increment's review also checks the whole spec
+- **deliver-increment skill**: Delivers the Implementation Plan one increment at a time, one pull request each (implement → refactor → review → commit → PR, fresh subagents), stopping after each PR

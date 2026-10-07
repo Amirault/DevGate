@@ -105,7 +105,7 @@ public async Task GivenQuote_WhenCalculating_ShouldHandleOptionalDiscount(
 ```markdown
 ### Example 1: Successful Quote Creation
 
-- **Context**: User "jean.dupont@wakam.com" with role "underwriter" requests quote for product "MRH"
+- **Context**: User "jane.doe@example.com" with role "underwriter" requests quote for product "MRH"
 - **Action**: Submit quote request
 - **Result**: Quote created with ID and status "DRAFT"
 ```

@@ -1,6 +1,6 @@
 ---
 name: refactoring
-description: "Active refactoring guide for .NET/C# following SOLID principles and Fowler's catalog. Invoke whenever user says: refactor, clean up, simplify, extract, this is getting complex, too long, smells, or when a method exceeds ~10 lines, a class has multiple responsibilities, or parameters exceed 3-4. Also invoke proactively during implementation when you're about to write code that violates SOLID or YAGNI, or when creating/finding single-use Request/Response/DTO/Exception types in dedicated files. Covers: SRP/OCP/LSP/ISP/DIP violations with C# fix patterns, type colocation (nest single-use types inside their consumer class/interface), Fowler smells (Long Method, Feature Envy, Primitive Obsession, Shotgun Surgery, Data Clumps, Single-Use Type in Separate File), and refactoring decisions guided by KISS/YAGNI. Complements review (which detects smells) — this skill guides the fix."
+description: "Active refactoring guide for .NET/C# (SOLID, Fowler's catalog). Invoke on: refactor, clean up, simplify, extract, too long, smells; a method over ~10 lines, a class with several responsibilities, more than 3-4 parameters, or single-use Request/Response/DTO/Exception types in dedicated files. Also proactively when about to write code that violates SOLID or YAGNI. Guides the fix; review detects the smells."
 effort: medium
 ---
 
@@ -51,7 +51,7 @@ public async Task ExecuteAsync(Request req) {
 // ❌ Switch that breaks with every new engine
 switch (engineType) {
     case "gembox": return _gembox.Calculate(req);
-    case "akur8":  return _akur8.Calculate(req);
+    case "engine-b": return _engineB.Calculate(req);
 }
 
 // ✅ Port + adapter — new engine = new class, no existing code changes
@@ -127,7 +127,7 @@ public interface IQuotePort {
 2. Used by 2+ consumers? → Separate file
 3. Single consumer → Nest inside consumer class/interface
 
-**Verify before moving:** `grep -r "TypeName" PricingApi --include="*.cs" | wc -l` (≈2 = single use)
+**Verify before moving:** `grep -r "TypeName" src --include="*.cs" | wc -l` (≈2 = single use)
 
 ## Fowler Code Smells → Refactorings
 
@@ -136,7 +136,7 @@ public interface IQuotePort {
 | **Long Method**                      | >10 lines, multiple levels of abstraction                            | Extract Method                         |
 | **Long Parameter List**              | >3-4 params                                                          | Introduce Parameter Object (C# record) |
 | **Feature Envy**                     | Method uses another class's data more than its own                   | Move Method                            |
-| **Primitive Obsession**              | `string partnershipCode`, `decimal premium` raw                      | Introduce Value Object                 |
+| **Primitive Obsession**              | `string customerCode`, `decimal premium` raw                      | Introduce Value Object                 |
 | **Data Clumps**                      | Same 3 params appear together repeatedly                             | Extract Record/Class                   |
 | **Shotgun Surgery**                  | 1 change touches 5+ files                                            | Move/consolidate                       |
 | **Divergent Change**                 | Class changes for multiple unrelated reasons                         | Extract Class (SRP)                    |

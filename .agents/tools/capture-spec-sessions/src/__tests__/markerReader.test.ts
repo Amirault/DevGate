@@ -46,10 +46,10 @@ describe("parseMarker", () => {
   });
 
   it.each([
-    ["a `cd` prefix", "cd /repo; : SPEC_MARKER v=1 spec_id=2026-06-30-x phase=review", "review"],
+    ["a `cd` prefix", "cd /repo/app; : SPEC_MARKER v=1 spec_id=2026-06-30-x phase=review", "review"],
     [
       "a `cd` prefix and a follow-up command on the next line",
-      "cd /repo; : SPEC_MARKER v=1 spec_id=2026-06-30-x phase=review\ncat .agents/skills/review/SKILL.md",
+      "cd /repo/app; : SPEC_MARKER v=1 spec_id=2026-06-30-x phase=review\ncat .agents/skills/review/SKILL.md",
       "review",
     ],
     [

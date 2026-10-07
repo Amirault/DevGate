@@ -1,6 +1,6 @@
 #!/bin/bash
 # list-implementable-specs.sh — Lists specs ready for implementation
-# Usage: ./list-implementable-specs.sh [--project PricingApi|IpaasManagementStudio]
+# Usage: ./list-implementable-specs.sh [--project <name>]
 # Output: JSON array of specs with metadata
 # Exit 0 = at least one spec found, Exit 1 = none found
 
@@ -17,7 +17,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         *)
-            echo "Usage: list-implementable-specs.sh [--project PricingApi|IpaasManagementStudio]" >&2
+            echo "Usage: list-implementable-specs.sh [--project <name>]" >&2
             exit 1
             ;;
     esac
@@ -53,9 +53,8 @@ scan_dir() {
             fi
         fi
 
-        local project size title filename
+        local project title filename
         project=$(grep -m1 "^project:" "$spec" | sed 's/^project:[[:space:]]*//')
-        size=$(grep -m1 "^size:" "$spec" | sed 's/^size:[[:space:]]*//')
         title=$(grep -m1 "^# Spec:" "$spec" | sed 's/^# Spec:[[:space:]]*//')
         filename=$(basename "$spec")
 
@@ -65,9 +64,8 @@ scan_dir() {
             --arg title "$title" \
             --arg status "$status" \
             --arg project "$project" \
-            --arg size "$size" \
             --arg location "$location" \
-            '. + [{path: $path, filename: $filename, title: $title, status: $status, project: $project, size: $size, location: $location}]')
+            '. + [{path: $path, filename: $filename, title: $title, status: $status, project: $project, location: $location}]')
     done
 }
 

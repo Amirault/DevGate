@@ -40,10 +40,13 @@ export class ClaudeCodeTranscriptReader implements ConversationReader {
       skipped.push(...read.skipped);
     }
 
-    const markerHits = findMarkerHits(records, specId);
+    const splitSessions = multiPhaseSessions(findMarkerHits(records, specId, new Set()));
+    const markerHits = findMarkerHits(records, specId, splitSessions);
     const phaseByCid = bindPhases(markerHits, skipped);
     const boundCids = new Set(phaseByCid.keys());
-    const drafts = records.flatMap((record) => draftsFromRecord(record, boundCids, this.rootDir, skipped));
+    const drafts = records.flatMap((record) =>
+      draftsFromRecord(record, boundCids, splitSessions, this.rootDir, skipped)
+    );
 
     return {
       source: "claude-code",
@@ -107,11 +110,11 @@ function skippedLine(filePath: string, lineNumber: number, reason: string): Skip
   };
 }
 
-function findMarkerHits(records: JsonlRecord[], specId: string): MarkerHit[] {
+function findMarkerHits(records: JsonlRecord[], specId: string, splitSessions: Set<string>): MarkerHit[] {
   const hits: MarkerHit[] = [];
 
   for (const record of records) {
-    const conversation_id = conversationId(record);
+    const conversation_id = conversationId(record, splitSessions);
     const start_ts = timestamp(record);
     if (conversation_id === null || start_ts === null) continue;
 
@@ -128,6 +131,16 @@ function findMarkerHits(records: JsonlRecord[], specId: string): MarkerHit[] {
   }
 
   return hits.sort((a, b) => (a.start_ts < b.start_ts ? -1 : a.start_ts > b.start_ts ? 1 : 0));
+}
+
+function multiPhaseSessions(markerHits: MarkerHit[]): Set<string> {
+  const phasesBySession = new Map<string, Set<Phase>>();
+  for (const hit of markerHits) {
+    const phases = phasesBySession.get(hit.conversation_id) ?? new Set<Phase>();
+    phases.add(hit.phase);
+    phasesBySession.set(hit.conversation_id, phases);
+  }
+  return new Set([...phasesBySession].filter(([, phases]) => phases.size > 1).map(([sessionId]) => sessionId));
 }
 
 function bindPhases(markerHits: MarkerHit[], skipped: SkippedRow[]): Map<string, Phase> {
@@ -158,10 +171,11 @@ function bindPhases(markerHits: MarkerHit[], skipped: SkippedRow[]): Map<string,
 function draftsFromRecord(
   record: JsonlRecord,
   boundCids: Set<string>,
+  splitSessions: Set<string>,
   rootDir: string,
   skipped: SkippedRow[]
 ): EventDraft[] {
-  const conversation_id = conversationId(record);
+  const conversation_id = conversationId(record, splitSessions);
   const ts = timestamp(record);
   if (conversation_id === null || !boundCids.has(conversation_id)) return [];
   // Session metadata records (custom-title, last-prompt, file-history-snapshot, …)
@@ -338,8 +352,11 @@ function stableJson(value: unknown): string {
   }
 }
 
-function conversationId(record: JsonlRecord): string | null {
-  return stringField(record.value, "sessionId") ?? path.basename(record.filePath, ".jsonl");
+function conversationId(record: JsonlRecord, splitSessions: Set<string>): string | null {
+  const sessionId = stringField(record.value, "sessionId") ?? path.basename(record.filePath, ".jsonl");
+  const agentId = stringField(record.value, "agentId");
+  if (agentId === undefined || !splitSessions.has(sessionId)) return sessionId;
+  return `${sessionId}/agent-${agentId}`;
 }
 
 function timestamp(record: JsonlRecord): string | null {
