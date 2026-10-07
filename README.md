@@ -160,4 +160,4 @@ docs/learnings/        # written by the learn skill, via learnings.py
 
 - The `project` field in templates uses generic placeholders — adapt it to your project names.
 - Scripts are shell-based, designed for Unix-like environments.
-- Some skills keep references to their origin project (Wakam Pricing) in examples; adapt them to your context.
+- Some skills keep references to their origin project in examples; adapt them to your context.

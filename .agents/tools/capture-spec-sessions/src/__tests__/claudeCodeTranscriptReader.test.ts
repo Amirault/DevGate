@@ -10,7 +10,7 @@ import { ClaudeCodeTranscriptReader } from "../adapters/claudeCodeTranscriptRead
 const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(TEST_DIR, "..", "..");
 const TSX = path.join(ROOT, "node_modules", ".bin", "tsx");
-const SPEC = "2026-06-30-multiquote-limit-5";
+const SPEC = "2026-06-30-add-search-endpoint-2";
 
 type Json = Record<string, unknown>;
 
@@ -264,8 +264,8 @@ describe("ClaudeCodeTranscriptReader", () => {
       assistantEntry(sessionId, "a1", "2026-06-30T09:00:00.000Z", [
         { type: "tool_use", id: "toolu_spec", name: "Bash", input: { command: markerCommand("specify") } },
       ]),
-      { type: "custom-title", sessionId, customTitle: "Specify multiquote limit" },
-      { type: "last-prompt", sessionId, lastPrompt: "/specify multiquote" },
+      { type: "custom-title", sessionId, customTitle: "Specify search endpoint" },
+      { type: "last-prompt", sessionId, lastPrompt: "/specify search endpoint" },
       { type: "file-history-snapshot", messageId: "m1", snapshot: {}, isSnapshotUpdate: false },
       { ...userEntry(sessionId, "u2", "unused", "a prompt with no timestamp"), timestamp: undefined },
     ]);

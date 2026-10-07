@@ -57,7 +57,7 @@ SELECT json_extract(b.ai_metadata, '$.conversation_id') AS conversation_id,
        c.start_ts, c.command
 FROM commands c
 JOIN blocks b ON b.start_ts = c.start_ts
-WHERE c.command LIKE ': SPEC_MARKER%multiquote-limit-5%'
+WHERE c.command LIKE ': SPEC_MARKER%add-search-endpoint-2%'
 ORDER BY c.start_ts;
 ```
 
@@ -70,7 +70,7 @@ SELECT DISTINCT CASE
   WHEN c.command LIKE '%phase=review%' THEN 'review'
 END AS phase
 FROM commands c
-WHERE c.command LIKE ': SPEC_MARKER%multiquote-limit-5%';
+WHERE c.command LIKE ': SPEC_MARKER%add-search-endpoint-2%';
 ```
 
 If queries 1–3 pass for one spec, the adapter can build a complete, correctly ordered bundle for any spec by `spec_id` alone.

@@ -41,12 +41,12 @@ describe("§9.11 compact — task-node noise reduction", () => {
   });
 
   it("Given repeated (field_path, value) pairs mixed with distinct siblings, When compacted, Then duplicates collapse onto the first survivor with a repeat count, distinct values are kept, and first-occurrence order is preserved", () => {
-    // Given — Wakam x3 on X.1, plus two distinct X.2 values
+    // Given — Acme x3 on X.1, plus two distinct X.2 values
     const nodes = [
-      n("X.1", "Wakam"),
-      n("X.1", "Wakam"),
+      n("X.1", "Acme"),
+      n("X.1", "Acme"),
       n("X.2", "agent-add-mcp"),
-      n("X.1", "Wakam"),
+      n("X.1", "Acme"),
       n("X.2", "different-action"),
     ];
 
@@ -54,7 +54,7 @@ describe("§9.11 compact — task-node noise reduction", () => {
     const out = compactNodes(nodes);
 
     // Then — three survivors in first-occurrence order; repeat only on the duplicated one
-    expect(out.map((x) => x.value)).toEqual(["Wakam", "agent-add-mcp", "different-action"]);
+    expect(out.map((x) => x.value)).toEqual(["Acme", "agent-add-mcp", "different-action"]);
     expect(out.map((x) => x.field_path)).toEqual(["X.1", "X.2", "X.2"]);
     expect(out[0]!.repeat).toBe(3);
     expect(out[1]).not.toHaveProperty("repeat");
@@ -107,8 +107,8 @@ describe("§9.11 compact — task-node noise reduction", () => {
       n("5.11", uuid),
       n("5.7", "KgwKBAgCEAQKBAgEEAg="),
       n("5.7", "KgwKBAgCEAQKBAgEEAg="),
-      n("S.1", "Wakam"),
-      n("S.1", "Wakam"),
+      n("S.1", "Acme"),
+      n("S.1", "Acme"),
       n("S.2", "agent-add-mcp"),
       n("S.2", "agent-add-mcp"),
       n("S.3", long),
@@ -120,7 +120,7 @@ describe("§9.11 compact — task-node noise reduction", () => {
     // Then — four survivors: real text, two duplicated siblings (repeat:2), one truncated long
     expect(out.map((x) => x.field_path)).toEqual(["2", "S.1", "S.2", "S.3"]);
     expect(out[0]!.value).toBe("Implement Spec Using Manual Skill");
-    expect(out[1]!.value).toBe("Wakam");
+    expect(out[1]!.value).toBe("Acme");
     expect(out[1]!.repeat).toBe(2);
     expect(out[2]!.value).toBe("agent-add-mcp");
     expect(out[2]!.repeat).toBe(2);
