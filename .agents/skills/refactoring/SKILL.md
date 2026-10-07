@@ -51,7 +51,7 @@ public async Task ExecuteAsync(Request req) {
 // ❌ Switch that breaks with every new engine
 switch (engineType) {
     case "gembox": return _gembox.Calculate(req);
-    case "akur8":  return _akur8.Calculate(req);
+    case "engine-b": return _engineB.Calculate(req);
 }
 
 // ✅ Port + adapter — new engine = new class, no existing code changes
@@ -127,7 +127,7 @@ public interface IQuotePort {
 2. Used by 2+ consumers? → Separate file
 3. Single consumer → Nest inside consumer class/interface
 
-**Verify before moving:** `grep -r "TypeName" PricingApi --include="*.cs" | wc -l` (≈2 = single use)
+**Verify before moving:** `grep -r "TypeName" src --include="*.cs" | wc -l` (≈2 = single use)
 
 ## Fowler Code Smells → Refactorings
 

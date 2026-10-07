@@ -15,10 +15,21 @@ const SPEC = "2026-06-30-multiquote-limit-5";
 type Json = Record<string, unknown>;
 
 function writeTranscript(root: string, sessionId: string, entries: Json[]): void {
-  const projectDir = path.join(root, "-Users-tony-Wakam-Pricing");
+  const projectDir = path.join(root, "-Users-dev-acme-app");
   fs.mkdirSync(projectDir, { recursive: true });
   const transcriptPath = path.join(projectDir, `${sessionId}.jsonl`);
   fs.writeFileSync(transcriptPath, `${entries.map((entry) => JSON.stringify(entry)).join("\n")}\n`, "utf8");
+}
+
+function writeSubagentTranscript(root: string, sessionId: string, agentId: string, entries: Json[]): void {
+  const subagentsDir = path.join(root, "-Users-dev-acme-app", sessionId, "subagents");
+  fs.mkdirSync(subagentsDir, { recursive: true });
+  const transcriptPath = path.join(subagentsDir, `agent-${agentId}.jsonl`);
+  fs.writeFileSync(transcriptPath, `${entries.map((entry) => JSON.stringify(entry)).join("\n")}\n`, "utf8");
+}
+
+function subagentEntry(agentId: string, entry: Json): Json {
+  return { ...entry, agentId, isSidechain: true };
 }
 
 function userEntry(sessionId: string, uuid: string, timestamp: string, content: unknown): Json {
@@ -27,7 +38,7 @@ function userEntry(sessionId: string, uuid: string, timestamp: string, content: 
     uuid,
     parentUuid: null,
     sessionId,
-    cwd: "/Users/tony/Wakam/Pricing",
+    cwd: "/Users/dev/acme/app",
     gitBranch: "main",
     version: "2.1.202",
     message: { role: "user", content },
@@ -41,7 +52,7 @@ function assistantEntry(sessionId: string, uuid: string, timestamp: string, cont
     uuid,
     parentUuid: null,
     sessionId,
-    cwd: "/Users/tony/Wakam/Pricing",
+    cwd: "/Users/dev/acme/app",
     gitBranch: "main",
     version: "2.1.202",
     message: {
@@ -130,7 +141,7 @@ describe("ClaudeCodeTranscriptReader", () => {
       role: "user",
       kind: "query",
       content: `please specify ${SPEC}`,
-      meta: expect.objectContaining({ cwd: "/Users/tony/Wakam/Pricing", git_branch: "main" }),
+      meta: expect.objectContaining({ cwd: "/Users/dev/acme/app", git_branch: "main" }),
     }));
     expect(events).toContainEqual(expect.objectContaining({
       conversation_id: "session-implement",
@@ -265,5 +276,59 @@ describe("ClaudeCodeTranscriptReader", () => {
     // Then
     expect(summary.conversations).toBe(1);
     expect(summary.skipped_rows.map((row) => row.reason)).toEqual(["missing timestamp"]);
+  });
+
+  it("Given one Claude Code session whose implement and review subagents emit their own phase markers, When extracted, Then each subagent transcript is bound to its phase", () => {
+    // Given — an autonomous-workflow run: both subagents share the parent sessionId
+    // and differ only by their agentId.
+    const sessionId = "session-autonomous";
+    writeTranscript(claudeRoot, sessionId, [
+      userEntry(sessionId, "u1", "2026-06-30T10:00:00.000Z", `run the workflow on ${SPEC}`),
+    ]);
+    writeSubagentTranscript(claudeRoot, sessionId, "impl", [
+      subagentEntry("impl", assistantEntry(sessionId, "a1", "2026-06-30T10:00:01.000Z", [
+        { type: "tool_use", id: "toolu_impl", name: "Bash", input: { command: markerCommand("implement") } },
+      ])),
+    ]);
+    writeSubagentTranscript(claudeRoot, sessionId, "rev", [
+      subagentEntry("rev", assistantEntry(sessionId, "a2", "2026-06-30T11:00:01.000Z", [
+        { type: "tool_use", id: "toolu_rev", name: "Bash", input: { command: markerCommand("review") } },
+      ])),
+    ]);
+
+    // When
+    const { bundle, summary } = extractSpecBundle(new ClaudeCodeTranscriptReader({ rootDir: claudeRoot }), SPEC);
+
+    // Then
+    expect(bundle).not.toBeNull();
+    expect(bundle!.header.conversations_per_phase).toEqual({ specify: 0, implement: 1, review: 1 });
+    expect(bundle!.header.conversation_ids).toEqual([`${sessionId}/agent-impl`, `${sessionId}/agent-rev`]);
+    expect(summary.skipped_rows.map((row) => row.reason)).not.toContain("same session has markers for multiple phases");
+  });
+
+  it("Given a single-phase Claude Code session with a marker-less subagent, When extracted, Then the subagent transcript binds under the plain sessionId", () => {
+    // Given — a manual implement session delegating a refactoring pass to a subagent.
+    const sessionId = "session-manual-implement";
+    writeTranscript(claudeRoot, sessionId, [
+      assistantEntry(sessionId, "a1", "2026-06-30T10:00:00.000Z", [
+        { type: "tool_use", id: "toolu_impl", name: "Bash", input: { command: markerCommand("implement") } },
+      ]),
+    ]);
+    writeSubagentTranscript(claudeRoot, sessionId, "refactor", [
+      subagentEntry("refactor", assistantEntry(sessionId, "a2", "2026-06-30T10:30:00.000Z", [
+        { type: "text", text: "Refactoring pass done." },
+      ])),
+    ]);
+
+    // When
+    const { bundle } = extractSpecBundle(new ClaudeCodeTranscriptReader({ rootDir: claudeRoot }), SPEC);
+
+    // Then
+    expect(bundle!.header.conversation_ids).toEqual([sessionId]);
+    expect(bundle!.events).toContainEqual(expect.objectContaining({
+      conversation_id: sessionId,
+      phase: "implement",
+      content: "Refactoring pass done.",
+    }));
   });
 });

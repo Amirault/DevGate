@@ -86,7 +86,7 @@ Every implementation must have a corresponding specification in `docs/backlog/`.
 **Emit the spec correlation marker (phase=review).** Run this literal no-op shell command with the active runtime's shell tool (Warp → `run_shell_command`, Claude Code → `Bash`, Hermes → `terminal` or `run_shell_command`). Run it; do not just print it. Run it as its own shell call — the whole command is the marker line alone: no `cd` prefix, no `;`/`&&` chaining, nothing after it (the `:` no-op needs no working directory). Use `spec_id` = the located spec filename without `.md` (resolved literal — no `$(...)` substitution because adapters match the submitted command text):
 
 ```bash
-: SPEC_MARKER v=1 spec_id=2026-06-30-multiquote-limit-5 phase=review
+: SPEC_MARKER v=1 spec_id=2026-06-30-add-search-endpoint-2 phase=review
 ```
 
 The leading `:` is a no-op (exit 0). The selected adapter binds it through that runtime's native session store. Emit once, now (session start) — a review subagent emits its own, even when its caller already emitted one. See `.agents/skills/specify/references/spec-marker.md`.
@@ -292,7 +292,7 @@ Other scopes:
      3. Update origin spec's Follow-up section to mark this increment as `[x]` done
      4. Confirm to user: "Spec merged into origin spec and archived in done/"
    - If `merge_on_completion: false` or not set: Confirm to user: "🏁 Spec closed and moved to done/."
-   - **Update `docs/features/`** (mandatory — always do this after closing a spec):
+   - **Update `docs/features/`** (only when the project keeps feature docs under `docs/features/` with a `SCHEMA.md`; skip this step otherwise):
      1. Read `docs/features/SCHEMA.md` — this defines the required structure every feature doc must follow
      2. Check the spec's "Technical Notes" section for a reference to a `docs/features/` file and a list of affected behaviors (added by specify during Phase 1)
      3. **If a related feature doc is referenced**:

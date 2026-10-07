@@ -7,7 +7,7 @@
 # Output: JSON with file paths and git info.
 # increment / branch-diff report "empty": true when there is nothing to review — a caller that
 # chose the scope treats it as a FAIL, never as a question.
-# shellcheck disable=SC2250,SC2292,SC2312  # style/note-level rules surfaced by the repo-wide `enable=all` (.shellcheckrc) — legacy patterns kept verbatim (file only moved by the review-spec-implementation→review rename); error/warning-level rules stay active
+# shellcheck disable=SC2250,SC2292,SC2312  # style/note-level rules; legacy patterns kept verbatim; error/warning-level rules stay active
 
 SCOPE="$1"
 SPEC_FILE="$2"

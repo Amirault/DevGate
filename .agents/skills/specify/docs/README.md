@@ -146,13 +146,9 @@ stateDiagram-v2
 ├── SKILL.md                        # Skill definition and process
 ├── docs/
 │   └── README.md                   # This file
-├── evals/
-│   ├── evals.json                  # Eval prompts and assertions
-│   ├── run-eval.sh                 # Baseline record/compare helper
-│   └── baseline/
-│       └── benchmark.json          # Baseline snapshot (100% pass rate)
 ├── references/
 │   ├── harness.md                  # What the full harness is and how to run it
+│   ├── implementation-plan.md      # Rules for the Implementation Plan (increments)
 │   ├── output-formats.md           # Phase output format specifications
 │   └── spec-marker.md              # Spec correlation marker
 ├── scripts/
@@ -162,74 +158,6 @@ stateDiagram-v2
 └── templates/
     └── spec-template.md
 ```
-
-## Regression Protection
-
-The skill has an eval suite that detects behavioral regressions. After any change to the skill, run the evals to verify nothing broke.
-
-### What the evals cover
-
-| Eval | Focus                                | Assertions | Type                                                 |
-| ---- | ------------------------------------ | ---------- | ---------------------------------------------------- |
-| 1    | Full Phase 1–6 flow                  | 12         | Positive — correct behavior                          |
-| 2    | Manual-only trigger guard            | 4          | Negative — "fix" keyword must NOT auto-trigger       |
-| 3    | Pre-check routing for existing specs | 10         | Positive — pre-check + normal flow                   |
-| 4    | Bare Refactoring line per increment  | 7          | Positive — refactoring requested, not described      |
-| 5    | Preparatory refactoring + rollout    | 9          | Positive — described prep increment, rollout section |
-| 6    | Big need, one spec                   | 6          | Positive — no split, more increments, one goal each  |
-| 7    | Contract change, flag, dead code     | 8          | Positive — consumers same increment, no unwired code |
-
-**Total: 56 assertions** across 7 evals.
-
-### Running evals
-
-Tell the Oz agent **"run specify evals"**. The agent will:
-
-1. Spawn subagents for each eval (one with the skill, one without for baseline)
-2. Grade outputs against the assertions in `evals/evals.json`
-3. Compare with_skill pass rate against the baseline in `evals/baseline/benchmark.json`
-
-### Using run-eval.sh
-
-The helper script sets up directories and displays the eval summary:
-
-```bash
-# First time: record the baseline
-./evals/run-eval.sh --record-baseline
-
-# After changes: compare against baseline
-./evals/run-eval.sh --compare
-```
-
-**Note**: The actual subagent execution requires the Oz agent orchestration. `run-eval.sh` prepares the structure; say **"run specify evals"** to execute the full evaluation.
-
-### Interpreting results
-
-- **with_skill pass rate = 1.0** → no regression
-- **with_skill pass rate < 1.0** → regression detected — investigate before merging
-- **without_skill pass rate** serves as a control — it shows what happens without the skill (expected: lower on positive evals, same on negative evals)
-
-### Current baseline
-
-| Eval              | with_skill   | without_skill | Delta              |
-| ----------------- | ------------ | ------------- | ------------------ |
-| 1 (full flow)     | 12/12 (100%) | 4/12 (33%)    | +67%               |
-| 2 (trigger guard) | 4/4 (100%)   | 4/4 (100%)    | 0% (negative test) |
-| 3 (pre-check)     | 10/10 (100%) | 1/10 (10%)    | +90%               |
-
-### Updating the baseline
-
-After intentionally changing skill behavior (e.g., adding a new phase):
-
-1. Run the evals: **"run specify evals"**
-2. Verify the new results are intentional
-3. Update the baseline snapshot:
-
-   ```bash
-   cp specify-workspace/iteration-N/benchmark.json evals/baseline/benchmark.json
-   ```
-
-4. Commit the updated baseline
 
 ## Guard Rails
 

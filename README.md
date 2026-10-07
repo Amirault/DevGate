@@ -130,6 +130,8 @@ reconstruct what happened long after the fact.
 
 **Prerequisites**
 - Unix-like environment (the scripts are shell)
+- **Python 3** for `.agents/scripts/learnings.py` (stdlib only)
+- A project **harness** the skills can point to: `harness.md` assumes a Lefthook pre-commit hook run through `mise`; adapt `.agents/skills/specify/references/harness.md` to your own checks
 - **Node.js ≥ 22** for `capture-spec-sessions` — `capture.sh` installs dependencies on first use; for direct CLI use: `cd .agents/tools/capture-spec-sessions && npm install`
 - **Warp**, **Claude Code** or **Hermes** as the session source — the marker must be in that runtime's local session store; remote (cloud) sessions are not captured *(documented gap)*
 

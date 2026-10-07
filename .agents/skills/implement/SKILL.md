@@ -57,7 +57,7 @@ Do NOT ask a "Proceed?" confirmation: naming the spec and the increment is the i
 **Emit the spec correlation marker (phase=implement).** Run this literal no-op shell command with the active runtime's shell tool (Warp → `run_shell_command`, Claude Code → `Bash`, Hermes → `terminal` or `run_shell_command`). Run it; do not just print it. Run it as its own shell call — the whole command is the marker line alone: no `cd` prefix, no `;`/`&&` chaining, nothing after it (the `:` no-op needs no working directory). Use `spec_id` = the located spec filename without `.md` (resolved literal — no `$(...)` substitution because adapters match the submitted command text):
 
 ```bash
-: SPEC_MARKER v=1 spec_id=2026-06-30-multiquote-limit-5 phase=implement
+: SPEC_MARKER v=1 spec_id=2026-06-30-add-search-endpoint-2 phase=implement
 ```
 
 The leading `:` is a no-op (exit 0). The selected adapter binds it through that runtime's native session store. Emit once, now (session start) — a subagent emits its own. See `.agents/skills/specify/references/spec-marker.md`.

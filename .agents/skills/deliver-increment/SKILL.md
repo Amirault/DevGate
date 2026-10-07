@@ -57,16 +57,15 @@ Log every answer: `- <timestamp> — increment N · <GAP|review FAIL>: <question
 
 1. Resolve the spec and increment N; check the status (guard rail 2) and the merge state (_Inputs_).
 2. `git status --porcelain` must be empty, except for the spec file itself. Otherwise stop and list the dirty files: a stopped run's leftovers are the human's call.
-3. **Legacy branch**: a branch `workflow/<spec-slug>` (no increment number) with commits that are not on `origin/main` comes from the former one-PR-per-spec model. Switch to it, open its Ask draft PR for the increments it holds (step 5), then stop with outcome `LEGACY PR OPENED <URL>` (no increment number, so no question to continue). Never start a new increment on top of it.
-4. **Branch** `workflow/<spec-slug>-<N>`:
+3. **Branch** `workflow/<spec-slug>-<N>`:
    - Exists locally (a stopped run) → `git switch workflow/<spec-slug>-<N>` and resume.
    - Otherwise → `git fetch origin main && git switch -c workflow/<spec-slug>-<N> --no-track origin/main` (`--no-track`: an upstream of `origin/main` would let the post-commit push target `main`). For the first increment, the spec must be on `origin/main` or uncommitted in the working tree (it then follows the switch); otherwise stop, because branching from `main` would lose it. Spec uncommitted locally and also on `origin/main` → delete the untracked copy first, or the switch aborts.
    - A fresh worktree may need the project's toolchain set up first (e.g. `direnv allow`, `mise trust`), then a restore of every tracked project, including those outside the solution file (the commands are in the project `AGENTS.md`), unless the restore assets already exist. Tell implement(N) and refactor(N) in their prompt that the restore assets are present.
-5. First increment: `.agents/skills/specify/scripts/transition-spec.sh <spec> implementation-in-progress`, which moves the spec to `docs/backlog/in-progress/`. Use the new path from here on.
-6. **Emit the spec correlation marker (phase=implement).** Run this literal no-op shell command with the active runtime's shell tool (Warp → `run_shell_command`, Claude Code → `Bash`, Hermes → `terminal` or `run_shell_command`). Run it; do not just print it. Run it as its own shell call — the whole command is the marker line alone: no `cd` prefix, no `;`/`&&` chaining, nothing after it. Use the resolved literal `spec_id` (spec filename without `.md`), never a `$(...)` substitution:
+4. First increment: `.agents/skills/specify/scripts/transition-spec.sh <spec> implementation-in-progress`, which moves the spec to `docs/backlog/in-progress/`. Use the new path from here on.
+5. **Emit the spec correlation marker (phase=implement).** Run this literal no-op shell command with the active runtime's shell tool (Warp → `run_shell_command`, Claude Code → `Bash`, Hermes → `terminal` or `run_shell_command`). Run it; do not just print it. Run it as its own shell call — the whole command is the marker line alone: no `cd` prefix, no `;`/`&&` chaining, nothing after it. Use the resolved literal `spec_id` (spec filename without `.md`), never a `$(...)` substitution:
 
    ```bash
-   : SPEC_MARKER v=1 spec_id=2026-06-30-multiquote-limit-5 phase=implement
+   : SPEC_MARKER v=1 spec_id=2026-06-30-add-search-endpoint-2 phase=implement
    ```
 
    Each subagent emits its own marker (implement and refactor: `phase=implement`; review: `phase=review`), so the adapter binds each transcript to its phase. See `.agents/skills/specify/references/spec-marker.md`.
@@ -128,7 +127,7 @@ Stop with the report, then ask:
 ```markdown
 # Delivery — <spec-slug>, increment <N> of <M>
 
-**Outcome**: PR OPENED <URL> | LEGACY PR OPENED <URL> | SPEC IMPLEMENTED — last PR <URL> | WAITING FOR MERGE <URL> | STOPPED (<phase> — <reason>)
+**Outcome**: PR OPENED <URL> | SPEC IMPLEMENTED — last PR <URL> | WAITING FOR MERGE <URL> | STOPPED (<phase> — <reason>)
 **Branch**: workflow/<spec-slug>-<N> — commit: <hash subject> (unpushed: <yes | no>)
 
 - Goal: <the increment's Goal>

@@ -1,6 +1,6 @@
 ---
 name: test-implementation
-description: "Single source of truth for C#/.NET test patterns. Read before writing any [Fact], [Test] or [Theory], even simple ones. Invoke when writing, modifying or reviewing tests, and whenever tdd-cycle, coverage-guard or review delegates to test patterns."
+description: "Single source of truth for C#/.NET test patterns. Read before writing any [Fact], [Test] or [Theory], even simple ones. Invoke when writing, modifying or reviewing tests, and whenever review or deliver-increment delegates to test patterns."
 effort: medium
 ---
 
@@ -165,7 +165,7 @@ public class PayloadNegativeDecimal
     [Description(
         "A negative decimal value in a numeric payload field is accepted when creating a quote"
     )]
-    public async Task GivenNegativeDecimalPayload_WhenCreatingMultiQuote_ShouldAcceptRequest()
+    public async Task GivenNegativeDecimalPayload_WhenCreatingOrder_ShouldAcceptRequest()
     {
         // ...
     }

@@ -40,10 +40,10 @@ Once the spec file is resolved (existing spec: at Pre-check below; new spec: rig
 Run this **literal no-op shell command** with the active runtime's shell tool (Warp → `run_shell_command`, Claude Code → `Bash`, Hermes → `terminal` or `run_shell_command`). Run it; do not just print it. Run it as its own shell call — the whole command is the marker line alone: no `cd` prefix, no `;`/`&&` chaining, nothing after it (the `:` no-op needs no working directory). Substitute the real `spec_id` = the spec filename without `.md`:
 
 ```bash
-: SPEC_MARKER v=1 spec_id=2026-06-30-multiquote-limit-5 phase=specify
+: SPEC_MARKER v=1 spec_id=2026-06-30-add-search-endpoint-2 phase=specify
 ```
 
-- `spec_id` must be the **resolved literal** (e.g. `2026-06-30-multiquote-limit-5`), never a `$(...)` substitution or variable — each adapter matches the submitted command text, so a placeholder breaks correlation.
+- `spec_id` must be the **resolved literal** (e.g. `2026-06-30-add-search-endpoint-2`), never a `$(...)` substitution or variable — each adapter matches the submitted command text, so a placeholder breaks correlation.
 - The leading `:` is a shell no-op (exit 0, no repo effect). The selected adapter binds it through that runtime's native session store.
 - Emit once per session, as early as possible after the spec file is known.
 

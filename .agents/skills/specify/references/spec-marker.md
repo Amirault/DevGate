@@ -9,7 +9,7 @@ A stable, greppable token emitted automatically by each spec-phase skill so the 
 ```
 
 - `v=1` — format version, so the adapter can evolve without breaking old data.
-- `spec_id` — the spec filename without `.md` (e.g. `2026-06-30-multiquote-limit-5`). This is the same id the `trace-capture` skill uses as its topic-id (the spec filename slug), reused verbatim — no hash, no new convention. It is stable across `todo → in-progress → done` moves because the transition scripts preserve the filename.
+- `spec_id` — the spec filename without `.md` (e.g. `2026-06-30-add-search-endpoint-2`). It is stable across `todo → in-progress → done` moves because the transition scripts preserve the filename.
 - `phase` — `specify | implement | review`.
 
 ## Emission (automatic — the human types nothing)
@@ -17,14 +17,14 @@ A stable, greppable token emitted automatically by each spec-phase skill so the 
 Each skill, once it has resolved the spec file, runs the marker as a **literal no-op shell command** through the active runtime's shell tool: Warp `run_shell_command`, Claude Code `Bash`, or Hermes `terminal`/`run_shell_command`.
 
 ```
-: SPEC_MARKER v=1 spec_id=2026-06-30-multiquote-limit-5 phase=implement
+: SPEC_MARKER v=1 spec_id=2026-06-30-add-search-endpoint-2 phase=implement
 ```
 
 Rules:
 
 - **Run it; do not just print it.** The leading `:` is a shell no-op (exit 0, no repo effect).
 - **Run it as its own shell call** — the whole command is the marker line alone: no `cd` prefix, no `;`/`&&` chaining, nothing after it. The no-op needs no working directory, so never `cd` for it. Warp and Hermes only bind a command that _starts_ with `: SPEC_MARKER`; the Claude Code adapter tolerates a marker chained on the first line (`cd … ; : SPEC_MARKER …`) as a recovery path, not as a way to emit it.
-- **`spec_id` must be the resolved literal** (e.g. `2026-06-30-multiquote-limit-5`), never a `$(...)` substitution or shell variable. Each adapter matches submitted command text, so a placeholder breaks correlation.
+- **`spec_id` must be the resolved literal** (e.g. `2026-06-30-add-search-endpoint-2`), never a `$(...)` substitution or shell variable. Each adapter matches submitted command text, so a placeholder breaks correlation.
 - **Emit once per session**, as early as possible after the spec file is known.
 - Re-runs (a second implement sitting, a re-gate) emit the same `spec_id` again from a new conversation. The adapter collects them all and orders by `start_ts` — no dedup, no state.
 
@@ -47,7 +47,7 @@ Substitute the real `spec_id`. The `: SPEC_MARKER` anchor avoids false positives
 SELECT DISTINCT json_extract(b.ai_metadata, '$.conversation_id') AS conversation_id
 FROM commands c
 JOIN blocks b ON b.start_ts = c.start_ts
-WHERE c.command LIKE ': SPEC_MARKER%spec_id=2026-06-30-multiquote-limit-5%';
+WHERE c.command LIKE ': SPEC_MARKER%spec_id=2026-06-30-add-search-endpoint-2%';
 ```
 
 2. Ordered marker emissions for a spec (phase timeline):

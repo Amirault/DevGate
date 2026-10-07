@@ -20,7 +20,7 @@ It is schema-less where a source schema is opaque (notably Warp's protobuf
 ## What it does
 
 Given a spec slug (the markdown filename under `docs/backlog/`, e.g.
-`2026-06-03-add-smoke-test-multi-quote-akur8`), the adapter:
+`2026-06-03-add-search-endpoint`), the adapter:
 
 1. **Finds correlation markers** — `: SPEC_MARKER v=1 spec_id=<slug> phase=<phase>`
    shell no-ops emitted by phase skills — and binds each to a conversation.
@@ -55,8 +55,12 @@ Given a spec slug (the markdown filename under `docs/backlog/`, e.g.
 Warp subagent tasks/blocks share the parent `conversation_id`, so they are pulled
 in automatically. Hermes compression continuations and delegate subagents are
 expanded through `parent_session_id`; explicit `/branch`, generic, and tool child
-sessions are excluded unless they contain their own marker. Re-runs of a phase
-are distinct conversations and are all kept.
+sessions are excluded unless they contain their own marker. Claude Code
+conversations are keyed by `sessionId`, so subagent transcripts
+(`<session>/subagents/agent-<id>.jsonl`) join their parent; only when one
+session's markers span several phases (e.g. an orchestrated run's implement and
+review subagents) is each subagent keyed `<sessionId>/agent-<agentId>` and bound
+to its own phase. Re-runs of a phase are distinct conversations and are all kept.
 
 ### Safety
 
@@ -176,7 +180,7 @@ scanned automatically.
 Output is written to `out/<spec>.jsonl` (relative to cwd), with a one-line summary:
 
 ```text
-wrote out/2026-06-03-add-smoke-test-multi-quote-akur8.jsonl (199 events, 1 conversations, complete=false)
+wrote out/2026-06-03-add-search-endpoint.jsonl (199 events, 1 conversations, complete=false)
 ```
 
 If a marker can't bind to a conversation (see **Marker binding decays** below) or
@@ -431,7 +435,7 @@ your live DB to validate end-to-end.
 - Warp default DB discovery is macOS-specific.
 - Claude Code extraction depends on the same `SPEC_MARKER` command being present
   in the transcript. A marker chained on the command's first line
-  (`cd project; : SPEC_MARKER …`, `script && : SPEC_MARKER …`) still binds, as a
+  (`cd app; : SPEC_MARKER …`, `script && : SPEC_MARKER …`) still binds, as a
   recovery path; quoted text and later lines (heredoc bodies) never do. A session that only mentions the spec slug but never ran the
   marker is not bound, by design, to avoid heuristic grouping.
 - Hermes binds only exact canonical marker lines executed by an assistant shell
