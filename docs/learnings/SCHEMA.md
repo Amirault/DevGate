@@ -13,12 +13,12 @@ The learning history written by the `learn` skill. `.agents/scripts/learnings.py
 ---
 category: asset_interpretation_gaps
 failure_mode: skill_unexpected_behavior
-asset_path: .agents/skills/git-commit/SKILL.md
+asset_path: .agents/skills/implement/SKILL.md
 asset_section: Fresh worktree
 symptom: git commit blocked in a fresh worktree because direnv was not allowed
 status: fixed
 fixed_by: learning/2026-10-02-add-search-endpoint-2
-fix_target: .agents/skills/git-commit/SKILL.md#Fresh worktree
+fix_target: .agents/skills/implement/SKILL.md#Fresh worktree
 fix_why: document direnv allow
 fixed_at: 2026-10-05
 fix_pr: https://github.com/acme/app/pull/1

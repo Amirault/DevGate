@@ -3,11 +3,11 @@
 Worked example for the rule in `SKILL.md` → _Secondary adapters — TestContainers_ (xUnit + PostgreSQL + EF Core, from ReleaseManagement).
 
 ```csharp
-public class PartnershipSavingAdapterTests : IAsyncLifetime
+public class OrderSavingAdapterTests : IAsyncLifetime
 {
     private PostgreSqlContainer _dbContainer;
     private ReleaseManagementDbContext _dbContext;
-    private PartnershipSavingAdapter _partnershipSavingAdapter;
+    private OrderSavingAdapter _orderSavingAdapter;
 
     public async Task InitializeAsync()
     {
@@ -19,7 +19,7 @@ public class PartnershipSavingAdapterTests : IAsyncLifetime
                 .UseNpgsql(_dbContainer.GetConnectionString()).Options);
         await _dbContext.Database.MigrateAsync();
 
-        _partnershipSavingAdapter = new PartnershipSavingAdapter(_dbContext);
+        _orderSavingAdapter = new OrderSavingAdapter(_dbContext);
     }
 
     public async Task DisposeAsync() => await _dbContainer.DisposeAsync();
@@ -31,7 +31,7 @@ public class PartnershipSavingAdapterTests : IAsyncLifetime
         var productId = (await _dbContext.Products.SingleAsync(p => p.Name == "SEED-PRODUCT")).Id;
 
         // When
-        _partnershipSavingAdapter.AddPartnership("PART-001", "Partnership A", productId, "test-user");
+        _orderSavingAdapter.AddPartnership("PART-001", "Partnership A", productId, "test-user");
 
         // Then
         var saved = await _dbContext.Partnerships.SingleOrDefaultAsync(p => p.Code == "PART-001");

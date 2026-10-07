@@ -2,7 +2,7 @@
 
 The harness is everything that controls agent behavior. Every spec-workflow skill (`specify`, `implement`, `review`) points here instead of listing commands.
 
-- **Mechanical part**: the Lefthook pre-commit hook — the project's `lefthook.yml` and every config it `extends` (build + analyzers + CSharpier, full tests, coverage check, linters, `validate-skills.py`, NuGet audit, …) — plus the `.agents/settings.json` hooks and `validate-spec.sh`.
+- **Mechanical part**: the Lefthook pre-commit hook — the project's `lefthook.yml` and every config it `extends` (build + analyzers + CSharpier, full tests, coverage check, linters, NuGet audit, …) — plus any agent hooks the project configures and `validate-spec.sh`.
 - **Written part**: `AGENTS.md`, the skills, `standards/adopted/`.
 
 **Single source of truth for the commands: the Lefthook config.** Never copy a harness command into a skill, a spec, or an Implementation Plan — name the full harness instead. When the Lefthook config changes, nothing else has to.

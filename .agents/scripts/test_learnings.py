@@ -16,7 +16,7 @@ REAL_DOCS_ROOT = Path(__file__).resolve().parents[2] / "docs" / "learnings"
 FINGERPRINT = {
     "category": "asset_interpretation_gaps",
     "failure_mode": "skill_unexpected_behavior",
-    "asset_path": ".agents/skills/git-commit/SKILL.md",
+    "asset_path": ".agents/skills/implement/SKILL.md",
     "asset_section": "Fresh worktree",
 }
 
@@ -52,7 +52,7 @@ class LearningsTestCase(unittest.TestCase):
     def match(self, **overrides):
         return self.run_tool("match", "--docs-root", str(self.root), *self.fingerprint_args(**overrides))
 
-    def record(self, slug="git-commit-fresh-worktree-direnv", spec="spec-a", increment="1", date="2026-10-05", extra=(), **overrides):
+    def record(self, slug="implement-fresh-worktree-direnv", spec="spec-a", increment="1", date="2026-10-05", extra=(), **overrides):
         return self.run_tool(
             "record", "--docs-root", str(self.root), "--slug", slug,
             *self.fingerprint_args(**overrides),
@@ -65,15 +65,15 @@ class LearningsTestCase(unittest.TestCase):
     def fix_args(self, fixed_at="2026-10-05"):
         return [
             "--fixed-by", "learning/spec-a-1",
-            "--fix-target", ".agents/skills/git-commit/SKILL.md#Fresh worktree",
+            "--fix-target", ".agents/skills/implement/SKILL.md#Fresh worktree",
             "--fix-why", "document direnv allow",
             "--fixed-at", fixed_at,
         ]
 
-    def entry_text(self, slug="git-commit-fresh-worktree-direnv"):
+    def entry_text(self, slug="implement-fresh-worktree-direnv"):
         return (self.entries / f"{slug}.md").read_text()
 
-    def occurrence_lines(self, slug="git-commit-fresh-worktree-direnv"):
+    def occurrence_lines(self, slug="implement-fresh-worktree-direnv"):
         return [line for line in self.entry_text(slug).splitlines() if line.startswith("- spec=")]
 
     def entry_files(self):
@@ -104,7 +104,7 @@ class MatchCriteria(LearningsTestCase):
     def test_match_answers_match_slug_on_same_key(self):
         self.record()
         code, out, _ = self.match()
-        self.assertEqual((code, out.strip()), (0, "match: git-commit-fresh-worktree-direnv"))
+        self.assertEqual((code, out.strip()), (0, "match: implement-fresh-worktree-direnv"))
 
     def test_match_answers_related_never_match_on_same_path_other_key(self):
         self.record()
@@ -116,7 +116,7 @@ class MatchCriteria(LearningsTestCase):
         for overrides in variants:
             with self.subTest(overrides=overrides):
                 code, out, _ = self.match(**overrides)
-                self.assertEqual((code, out.strip()), (0, "related: git-commit-fresh-worktree-direnv"))
+                self.assertEqual((code, out.strip()), (0, "related: implement-fresh-worktree-direnv"))
 
 
 class RecordCriteria(LearningsTestCase):
@@ -145,13 +145,13 @@ class RecordCriteria(LearningsTestCase):
     def test_record_appends_occurrence_on_existing_key_without_new_file(self):
         self.record(spec="spec-a", increment="1")
         self.record(slug="another-slug", spec="spec-b", increment="2")
-        self.assertEqual(self.entry_files(), ["git-commit-fresh-worktree-direnv.md"])
+        self.assertEqual(self.entry_files(), ["implement-fresh-worktree-direnv.md"])
         self.assertEqual(len(self.occurrence_lines()), 2)
 
     def test_record_is_idempotent_on_slug_spec_increment_and_updates_the_occurrence(self):
         self.record(spec="spec-a", increment="3")
         self.run_tool(
-            "record", "--docs-root", str(self.root), "--slug", "git-commit-fresh-worktree-direnv",
+            "record", "--docs-root", str(self.root), "--slug", "implement-fresh-worktree-direnv",
             *self.fingerprint_args(), "--symptom", "s", "--spec", "spec-a", "--increment", "3",
             "--date", "2026-10-05", "--evidence", "evidence A prime",
         )
@@ -173,7 +173,7 @@ class RecordCriteria(LearningsTestCase):
         text = self.entry_text()
         self.assertIn("status: fixed", text)
         self.assertIn("fixed_by: learning/spec-a-1", text)
-        self.assertIn("fix_target: .agents/skills/git-commit/SKILL.md#Fresh worktree", text)
+        self.assertIn("fix_target: .agents/skills/implement/SKILL.md#Fresh worktree", text)
         self.assertIn("fix_why: document direnv allow", text)
         self.assertIn("fixed_at: 2026-10-05", text)
 
@@ -181,7 +181,7 @@ class RecordCriteria(LearningsTestCase):
         self.record(extra=self.fix_args())
         url = "https://github.com/acme/app/pull/1"
         code, _, _ = self.run_tool(
-            "record", "--docs-root", str(self.root), "--slug", "git-commit-fresh-worktree-direnv", "--fix-pr", url
+            "record", "--docs-root", str(self.root), "--slug", "implement-fresh-worktree-direnv", "--fix-pr", url
         )
         self.assertEqual(code, 0)
         self.assertIn(f"fix_pr: {url}", self.entry_text())
@@ -199,23 +199,23 @@ class IndexCriteria(LearningsTestCase):
     def test_index_flags_recurred_only_for_occurrence_after_fixed_at(self):
         self.record(extra=self.fix_args(fixed_at="2026-10-05"))
         self.record(spec="spec-b", date="2026-10-05")
-        self.assertIn("fixed", self.row_for(self.index_text(), "git-commit-fresh-worktree-direnv"))
-        self.assertNotIn("recurred", self.row_for(self.index_text(), "git-commit-fresh-worktree-direnv"))
+        self.assertIn("fixed", self.row_for(self.index_text(), "implement-fresh-worktree-direnv"))
+        self.assertNotIn("recurred", self.row_for(self.index_text(), "implement-fresh-worktree-direnv"))
         self.record(spec="spec-c", date="2026-10-12")
-        self.assertIn("recurred", self.row_for(self.index_text(), "git-commit-fresh-worktree-direnv"))
+        self.assertIn("recurred", self.row_for(self.index_text(), "implement-fresh-worktree-direnv"))
 
     def test_index_has_one_sorted_row_per_entry_with_count_and_last_seen_and_is_reproducible(self):
         self.record(slug="skill-trigger-miss", asset_section="A", date="2026-10-01")
-        self.record(slug="git-commit-fresh-worktree-direnv", asset_section="B", date="2026-10-02")
-        self.record(slug="git-commit-fresh-worktree-direnv", asset_section="B", spec="spec-b", date="2026-10-09")
-        self.record(slug="fix-mutants-baseline-fetch", asset_section="C", date="2026-10-03")
+        self.record(slug="implement-fresh-worktree-direnv", asset_section="B", date="2026-10-02")
+        self.record(slug="implement-fresh-worktree-direnv", asset_section="B", spec="spec-b", date="2026-10-09")
+        self.record(slug="build-baseline-fetch", asset_section="C", date="2026-10-03")
         first = self.index_text()
         rows = [line for line in first.splitlines() if line.startswith("| [")]
         self.assertEqual(
             [r.split("]")[0][3:] for r in rows],
-            ["fix-mutants-baseline-fetch", "git-commit-fresh-worktree-direnv", "skill-trigger-miss"],
+            ["build-baseline-fetch", "implement-fresh-worktree-direnv", "skill-trigger-miss"],
         )
-        middle = self.row_for(first, "git-commit-fresh-worktree-direnv")
+        middle = self.row_for(first, "implement-fresh-worktree-direnv")
         cells = [c.strip() for c in middle.strip("|").split(" | ")]
         self.assertEqual(cells[-2:], ["2", "2026-10-09"])
         self.assertEqual(self.index_text(), first)
