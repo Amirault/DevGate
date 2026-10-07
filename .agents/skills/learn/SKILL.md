@@ -1,6 +1,6 @@
 ---
 name: learn
-description: "Learning pass on a spec: extract its conversation bundle, classify session breakdown points into four categories, and suggest at most one cross-spec harness improvement with evidence. Read-only. Triggers on learn/retro/post-mortem."
+description: "Learning pass on a spec: extract its conversation bundle, classify session breakdown points into four categories, record every finding in the learning history (docs/learnings), and suggest at most one cross-spec harness improvement with evidence. Applies no fix. Triggers on learn/retro/post-mortem."
 effort: medium
 ---
 
@@ -15,12 +15,17 @@ scope:
     - Classification of breakdown points found in those sessions
     - Prioritization down to at most one candidate
     - Suggestion of that candidate and its potential fix
+    - Recording every finding in the learning history under docs_root, through learnings.py only
   out_of_scope:
     - Executing the specify / implement / review skills
     - Applying the suggested fix
-    - Any write operation on the repository or on other skills
+    - Any write outside docs_root, and any write to docs_root not made through learnings.py
 
 inputs:
+  docs_root: >
+    Directory holding docs/learnings/ (a learning worktree for an autonomous run, the working
+    tree for a manual /learn: left uncommitted). Default: the project root.
+  history: python3 .agents/scripts/learnings.py <match|record|index> --docs-root <docs_root>/docs/learnings
   sessions:
     tool: capture-spec-sessions
     cwd: the project root (paths below are relative to it); capture.sh itself resolves the project root from any cwd
@@ -59,6 +64,7 @@ pipeline:
       - Record spec_id and status.
       - Run capture-spec-sessions, then read the bundle and its warnings.
       - Read the spec's "## Implementation Log".
+      - Read <docs_root>/docs/learnings/INDEX.md: the history to match findings against.
 
   - id: diagnose_spec_sessions
     name: DIAGNOSE SPEC SESSIONS
@@ -104,8 +110,15 @@ pipeline:
             The AGENTS.md context degrades the session:
             obsolete path, wrong assertion, outdated information.
           - >
+            The project's domain ontology (when it keeps one) degrades the session:
+            wrong concept or invariant, missing twin or divergence, stale change-impact entry,
+            an open question answered during the session but still open in the file.
+          - >
             The spec file is wrong and has been corrected mid-flight,
             e.g. a wrong assertion was added and degraded the workflow.
+        fix_target: >
+          When the defect is a domain fact (concept, invariant, header, twin), target
+          the domain ontology first (when the project keeps one), before AGENTS.md or any skill file.
 
       - id: time_cost
         label: Time cost
@@ -163,7 +176,8 @@ pipeline:
       - id: cross_spec_only
         type: hard
         keep_if: >
-          The fix targets a shared asset: AGENTS.md, a phase skill file
+          The fix targets a shared asset: AGENTS.md, the domain ontology
+          (when the project keeps one), a phase skill file
           (specify / implement / review), any other skill file, a lint rule,
           a pre-commit hook, an ADR, or the observability configuration.
         discard_if: The fix only touches this spec file or the code written for it.
@@ -171,10 +185,25 @@ pipeline:
       - id: at_most_one
         rule: Keep at most one item.
 
+  - id: record
+    name: RECORD
+    goal: Persist EVERY finding of the run, those discarded by cross_spec_only included.
+    actions:
+      - >
+        Fingerprint each finding: category, failure_mode (closed vocabulary of
+        docs/learnings/SCHEMA.md), asset_path, asset_section (both `none` when no asset), symptom.
+      - >
+        Run `match`, then `record` with --slug, --spec, --increment, --evidence and
+        --discarded-by <filter> when a filter removed it. `match: <slug>` records an occurrence
+        on that entry. `related: <slugs>` is never a merge: record a new entry with
+        --related-to and --related-reason saying why it differs.
+      - Run `index` once all findings are recorded. Never record the fix: the orchestrator does.
+
   - id: suggest
     name: SUGGEST
-    goal: Deliver the outcome. Write nothing.
+    goal: Deliver the outcome. Write nothing beyond the record step.
     output_contract:
+      all_findings: every finding with its slug and match status (new, match, related), the discarded ones included.
       when_one_item:
         - breakdown_point: what went wrong
         - category: the classification id

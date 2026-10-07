@@ -17,8 +17,6 @@
 #
 # origin_spec handling:
 #   If origin_spec is set, validate it points to an existing spec file.
-#   When a split spec (origin_spec set) transitions to ready-to-implement,
-#   warn if sibling specs from the same split are not also ready.
 
 SPEC_FILE="$1"
 NEW_STATUS="$2"

@@ -1,7 +1,8 @@
 #!/bin/bash
 # validate-spec.sh — Validates a spec file has all required sections filled
 # Usage: ./validate-spec.sh <path-to-spec-file> [--require-plan]
-# --require-plan: also validates the Implementation Plan and Open Questions sections.
+# --require-plan: also validates the Implementation Plan (incl. the mechanical planning rules of
+#                 check_plan_rules) and the Open Questions / Spec Quality Checklist sections.
 #                 Used by transition-spec.sh at approval (specifying -> ready-to-implement),
 #                 so `ready-to-implement` is a trustworthy validation stamp for the implement skill.
 # Exit 0 = valid, Exit 1 = invalid (with details on stderr)
@@ -49,6 +50,54 @@ check_section() {
     fi
 }
 
+# Mechanical planning rules (specify Phase 5), one error line per violation:
+# - the Refactoring line is bare: post-increment refactoring is requested, never described
+# - Validation names the full harness, never a filtered test run
+# - no increment looks post-merge: those checks belong to ## Rollout observation
+check_plan_rules() {
+    echo "$1" | awk '
+        function flag_post_merge(text) {
+            if (tolower(text) ~ /post[- ]?(merge|deploy|deployment|rollout|release)|after (the )?(merge|deploy|deployment|rollout|release)|once (merged|deployed|live)|(is|are) live in production/) {
+                post_merge[current] = 1
+            }
+        }
+        in_comment { if ($0 ~ /-->/) in_comment = 0; next }
+        /<!--/ { if ($0 !~ /-->/) in_comment = 1; next }
+        /^- \[[ x]\] / {
+            increments++
+            current = increments
+            if (match($0, /Increment[[:space:]]+[0-9]+/)) {
+                label = substr($0, RSTART, RLENGTH)
+                sub(/Increment[[:space:]]+/, "", label)
+                current = label + 0
+            }
+            flag_post_merge($0)
+            next
+        }
+        /^[[:space:]]+- \[[ x]\] \*\*Refactoring\*\*/ {
+            if ($0 !~ /^[[:space:]]+- \[[ x]\] \*\*Refactoring\*\*: subagent pass[[:space:]]*$/) {
+                print "Increment " current ": the Refactoring line must be bare (\"- [ ] **Refactoring**: subagent pass\") — post-increment refactoring is requested, never described; plan a structural change the next increment needs as its own preparatory refactoring increment"
+            }
+            next
+        }
+        /^[[:space:]]+- \*\*Validation\*\*:/ {
+            if ($0 ~ /--filter/) {
+                print "Increment " current ": **Validation** runs a filtered test run (--filter) — name the full harness (.agents/skills/specify/references/harness.md) instead"
+            } else if (tolower($0) !~ /full harness/) {
+                print "Increment " current ": **Validation** must name the full harness (.agents/skills/specify/references/harness.md)"
+            }
+            flag_post_merge($0)
+            next
+        }
+        /^[[:space:]]+- \*\*How\*\*:/ { flag_post_merge($0); next }
+        END {
+            for (inc in post_merge) {
+                print "Increment " inc ": looks post-merge (runs after merge/deploy) — move it to ## Rollout observation; an increment must run and pass the harness on the branch"
+            }
+        }
+    '
+}
+
 # Check unresolved placeholders globally
 if echo "$CONTENT" | grep -q '{{[^}]*}}'; then
     ERRORS+=("Unresolved placeholders found ({{ ... }})")
@@ -57,11 +106,6 @@ fi
 # Check frontmatter status exists
 if ! echo "$CONTENT" | head -20 | grep -q "^status:"; then
     ERRORS+=("Missing frontmatter: status field")
-fi
-
-# Check frontmatter size exists
-if ! echo "$CONTENT" | head -20 | grep -q "^size:"; then
-    ERRORS+=("Missing frontmatter: size field")
 fi
 
 # Validate origin_spec points to existing file if set
@@ -147,8 +191,12 @@ if [ "$REQUIRE_PLAN" = "true" ]; then
     if [ "$INCREMENT_COUNT" -eq 0 ]; then
         ERRORS+=("Implementation Plan: need at least one '- [ ] Increment' checkbox item")
     else
+        GOAL_COUNT=$(echo "$PLAN_SECTION" | grep -c '\*\*Goal\*\*:[[:space:]]*[^[:space:]]')
         WHAT_COUNT=$(echo "$PLAN_SECTION" | grep -c '\*\*What\*\*:[[:space:]]*[^[:space:]]')
         VALIDATION_COUNT=$(echo "$PLAN_SECTION" | grep -c '\*\*Validation\*\*:[[:space:]]*[^[:space:]]')
+        if [ "$GOAL_COUNT" -lt "$INCREMENT_COUNT" ]; then
+            ERRORS+=("Implementation Plan: each increment needs a filled **Goal** line — what changes once its pull request is merged, readable without the code")
+        fi
         if [ "$WHAT_COUNT" -lt "$INCREMENT_COUNT" ]; then
             ERRORS+=("Implementation Plan: each increment needs a filled **What** line")
         fi
@@ -157,12 +205,15 @@ if [ "$REQUIRE_PLAN" = "true" ]; then
         fi
         REFACTORING_COUNT=$(echo "$PLAN_SECTION" | grep -cE '^[[:space:]]*- \[[ x]\] \*\*Refactoring\*\*')
         if [ "$REFACTORING_COUNT" -lt "$INCREMENT_COUNT" ]; then
-            ERRORS+=("Implementation Plan: each increment needs a '- [ ] **Refactoring**' sub-checkbox (subagent refactoring pass — checked by implement after the pass)")
+            ERRORS+=("Implementation Plan: each increment needs a '- [ ] **Refactoring**: subagent pass' sub-checkbox (checked after the subagent refactoring pass)")
         fi
         PRECHECKED_REFACTORING=$(echo "$PLAN_SECTION" | grep -cE '^[[:space:]]*- \[x\] \*\*Refactoring\*\*')
         if [ "$PRECHECKED_REFACTORING" -gt 0 ]; then
-            ERRORS+=("Implementation Plan: $PRECHECKED_REFACTORING '**Refactoring**' sub-checkbox(es) already checked — specify leaves them unchecked; implement checks them only after the subagent pass")
+            ERRORS+=("Implementation Plan: $PRECHECKED_REFACTORING '**Refactoring**' sub-checkbox(es) already checked — specify leaves them unchecked; they are checked only after the subagent pass")
         fi
+        while IFS= read -r plan_error; do
+            [ -n "$plan_error" ] && ERRORS+=("Implementation Plan: $plan_error")
+        done < <(check_plan_rules "$PLAN_SECTION")
     fi
 
     UNCHECKED_QUESTIONS=$(extract_section "Open Questions" | grep -c '^- \[ \]')

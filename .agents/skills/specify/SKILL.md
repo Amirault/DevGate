@@ -2,6 +2,7 @@
 name: specify
 description: "Manual-only skill. Use only when the user explicitly asks to run specify. Guides structured creation and refinement of implementation specs — validates understanding, explores codebase context, probes gaps, produces acceptance criteria with behavioral examples, human-reviews each spec section before validation, and requires explicit approval before implementation can begin."
 effort: high
+disable-model-invocation: true
 ---
 
 # Specify
@@ -90,7 +91,7 @@ Gathering context before asking questions prevents asking things the codebase al
 - **Entry point**: start from the file/class/method most directly related to the change.
 - **Call depth limit**: follow call chains up to 3 levels deep (caller → callee → callee's dependency).
 - **Test proximity**: if a behavior is tested, the test file is often the best map of the code.
-- **Doc priority**: read `AGENTS.md` first, then domain docs (`docs/domain/`), then ADRs.
+- **Doc priority**: read `AGENTS.md` first, then domain docs (`docs/domain/`; when the project keeps a machine-checked domain ontology, start there), then ADRs.
 - **Stop signals**: stop exploring when you hit infrastructure boilerplate (DI wiring, middleware, base classes) unless the change directly touches it.
 
 #### Steps
@@ -101,6 +102,7 @@ Gathering context before asking questions prevents asking things the codebase al
 4. Check `docs/features/` for related behavior docs — list impacted behaviors/tests if found.
 5. Summarize findings: current behavior, touched areas, likely impact.
 6. **Verify external references against their live source.** Any external reference that will appear in the spec's Acceptance Criteria or Technical Notes — cloud resource identifiers (subscription / resource group / app names), linked documents (Notion, ADRs, other specs), `origin_spec` pointers, or URLs — must be checked against its actual live source, never assumed from a chat message or colleague guidance. Codebase exploration is not sufficient for external systems. Cite the verification command + output (or the resolved link) inline in the spec next to the reference.
+7. **Domain ontology (when the project keeps one): map the change onto it.** In `## Technical Notes`, add a `Concepts, invariants & twins touched` list built from the ontology: touched concepts, invariant IDs, the twin of every touched file the ontology pairs (mirrored, or why not), matching change-impact entries, and every `open_questions` entry the change depends on. An open question the change depends on scores GAPS 🔴 in Phase 3 until the user answers it. If the code contradicts the ontology, say so and plan the ontology fix in the Implementation Plan.
 
 ### Phase 3 — Probe & Assess
 
@@ -110,21 +112,16 @@ Ask clarifying questions until there is a common understanding, covering:
 
 - **Why**: problem and impact.
 - **What**: exact expected behavior and boundaries.
-- **Size**: likely scope and split strategy.
+- **Increments**: the goals the need breaks into, each one a pull request.
 - **Risk**: edge cases, failures, regressions.
 - **Gaps**: missing business or technical constraints.
 
 Do not cap the number of questions — continue until ambiguity is resolved and the user explicitly confirms understanding.
 
-Adapt depth by size:
-
-- XS: 1 quick confirmation, minimal assessment.
-- S: 2–3 focused questions.
-- M/L: multi-round probing, mandatory split for L.
+Adapt depth to how unclear and how risky the need is: a one-line change needs one quick confirmation; a new behavior, a contract change or a risky change needs multi-round probing.
 
 Once questions are resolved, produce a health assessment:
 
-- Size estimate: XS / S / M / L.
 - Clarity per dimension: 🟢 / 🟡 / 🔴.
 - Risk flags and unknowns.
 - Any external reference (cloud IDs, linked docs, `origin_spec`, URLs) not yet verified against its live source per Phase 2 scores GAPS 🔴.
@@ -132,13 +129,18 @@ Once questions are resolved, produce a health assessment:
 Blocking rules:
 
 - Any 🔴 → close gaps before proceeding to Phase 4.
-- L-sized → must split into ≥2 independent specs before any single spec enters Phase 4.
+
+#### One spec, the whole need
+
+The spec covers the whole need. A big need is never split into several specs: it gets more increments (Phase 5), each with its own goal and its own pull request. Ideas outside the need go to `## Follow-up`, as possible future specs.
 
 ### Phase 3.5 — Grill (mandatory)
 
 Invoke the `grilling` skill to stress-test the plan before writing the spec. With codebase context from Phase 2, the grill becomes a precision tool — targeting specific branches of the decision tree surfaced by discovery.
 
 Trigger: run `/grilling` or read `.agents/skills/grilling/SKILL.md`, and follow its instructions.
+
+The grill also challenges the increments: does each one have a goal a reviewer understands without the code, does it ship alone as its own pull request, does any change need a feature flag (RISK 🟡/🔴, or existing consumers would see a behavior change), and what can only be checked after deploy (`## Rollout observation`)?
 
 After grilling completes, update the health assessment with any new constraints or decisions, then proceed to Phase 4.
 
@@ -163,6 +165,7 @@ The spec is the single source of truth for implementation — precise enough tha
    - Concrete behavioral examples with realistic data — minimum 1 per criterion + 1 edge case.
    - If continuing from a previous spec, set `origin_spec` in frontmatter.
    - Populate the Health Check table with scores from Phase 3 assessment.
+   - When the change is visible in production (behavior, traffic, data, cost), fill `## Rollout observation`: what changes in production, candidate success and failure signals, observation window. Otherwise delete the section. Post-deploy checks live there, never in the Implementation Plan.
    - **Cross-section consistency (blocking)**: `## What NOT` items must not appear in `## Technical Notes`, `## Implementation Plan`, or `## Health Check`. Resolve obvious stale references silently; ask only when genuinely ambiguous. Blocks `ready-to-implement`.
 
 ### Phase 4.5 — Human Review (mandatory)
@@ -183,33 +186,18 @@ After every section is approved:
 
    Fix all issues before continuing.
 
-2. Self-review with the `## Spec Quality Checklist`: verify each item against the actual spec content and check it off ONLY when true — if an item doesn't hold, fix the spec first. Do not check boxes to satisfy the validator; the checklist IS the review. Approval is blocked while any box is unchecked.
+2. Self-review with the `## Spec Quality Checklist`: verify each spec item against the actual spec content and check it off ONLY when true — if an item doesn't hold, fix the spec first. The plan items (increments, flag, refactoring, rollout) are checked in Phase 5, once the plan exists. Do not check boxes to satisfy the validator; the checklist IS the review. Approval is blocked while any box is unchecked.
 
 This phase is never optional; the spec is not considered validated without per-section human approval.
 
 ### Phase 5 — Implementation Plan
 
-Before asking for approval, produce a concrete step-by-step implementation plan. This bridges the gap between spec and execution — a different agent in a fresh session must be able to implement from this plan without re-discovering the approach.
+Before asking for approval, produce a concrete step-by-step implementation plan. This bridges the gap between spec and execution — a different agent in a fresh session must be able to implement from this plan without re-discovering the approach, and a human must be able to review each increment's pull request against it.
 
-1. **Derive the plan from the spec**:
-   - Break the spec into discrete, ordered increments.
-   - Each increment must be small enough to build + test + commit in one cycle.
-   - Respect dependency order (e.g. domain model before API, adapter before endpoint).
-2. **For each increment, specify**:
-   - **What**: exact files to create/modify/delete.
-   - **How**: key design decisions, naming conventions, namespace/layout rules.
-   - **Validation**: the build/test command(s) to run and the expected outcome.
-   - **Commit scope**: a draft conventional commit message (scope + type).
-   - **Refactoring**: an unchecked `- [ ] **Refactoring**` sub-checkbox for the increment's refactoring phase — a subagent pass applying `.agents/skills/refactoring/SKILL.md` (Fowler's smell catalog, SOLID, Uncle Bob) to the files this increment changed, after the increment's code is green. Left unchecked for the implement phase to check once the pass is done, so review can verify every increment ended refactored. Add per-increment targets when known (smells to watch for, planned extractions).
-3. **Flag risks and guardrails**:
-   - DI ordering constraints, shared singletons that must not be duplicated.
-   - Boundary conversions (e.g. enum bridging between cloned and original types).
-   - Files that look similar but must NOT be confused (file name ≠ type name).
-4. **Reference existing patterns**:
-   - Cite analogous code in the codebase the implementer should mirror.
-   - Link to relevant ADRs, domain docs, or prior specs.
-5. **Persist the plan into the spec file**: write the increments into the spec's `## Implementation Plan` section as checkboxes (`- [ ] Increment N: title` with **What**/**How**/**Validation**/**Commit** sub-bullets, each increment carrying its own unchecked `- [ ] **Refactoring**` sub-checkbox). The spec file is the handoff artifact — a plan that only lives in the conversation is lost to the implementing session. Approval is blocked until this section is filled — `validate-spec.sh --require-plan` rejects a plan whose increments lack the Refactoring checkbox.
-6. **Present the plan**: mirror the spec content as a numbered list with sub-bullets. Keep it scannable — one line per file/action where possible.
+1. **Derive the plan from the spec** — discrete, ordered increments, dependency order respected. Before writing any increment, read `.agents/skills/specify/references/implementation-plan.md`: the planning rules, what each increment must specify (**Goal**/**What**/**How**/**Validation**/**Commit** and the bare `- [ ] **Refactoring**: subagent pass` sub-checkbox), the risks and guardrails to flag, and the existing patterns to reference.
+2. **Persist the plan into the spec file**: write the increments into the spec's `## Implementation Plan` section as checkboxes (`- [ ] Increment N: title` with **Goal**/**What**/**How**/**Validation**/**Commit** sub-bullets and the bare Refactoring sub-checkbox). The spec file is the handoff artifact — a plan that only lives in the conversation is lost to the implementing session.
+3. **Self-review the plan**: check the plan items of the `## Spec Quality Checklist` against the actual plan — ONLY when true, fix the plan first otherwise. Then run `validate-spec.sh <spec> --require-plan`: it checks what is mechanical (a filled **Goal** per increment, bare Refactoring line, no `--filter` in **Validation**, full harness named, no increment that looks post-merge). The self-review and the Phase 3.5 grill cover the rest.
+4. **Present the plan**: mirror the spec content as a numbered list with sub-bullets, each increment's Goal first. Keep it scannable — one line per file/action where possible.
 
 ### Phase 6 — Confirm
 
@@ -246,7 +234,7 @@ When the user invokes `specify` without a concrete change request:
 - `specifying` — draft or refinement in progress.
 - `ready-to-implement` — approved AND validated spec with implementation plan, awaiting work start.
 - `on-hold` — deferred.
-- `implementation-in-progress` — work started, spec moved to `in-progress/`.
-- `implemented` — implementation complete, awaiting human sign-off.
+- `implementation-in-progress` — work started, spec moved to `in-progress/`; increments are delivered one pull request each.
+- `implemented` — every increment delivered (last pull request open), awaiting merge and human sign-off.
 - `done` — human confirmed DONE, spec moved to `done/`.
 - `rejected` — won't do, spec moved to `rejected/`; can be resurrected to `specifying`.

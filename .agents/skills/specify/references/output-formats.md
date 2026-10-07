@@ -15,6 +15,7 @@ Expected change: [1-2 sentences]
 Out of scope: [bullet list]
 
 **Doubts / Ambiguities**
+
 - [specific doubt or contradiction]
 - [another if any]
 
@@ -35,6 +36,7 @@ Rules:
 ## Phase 2: Discover
 
 **Explored**
+
 - [file or doc path] — [what it revealed, 1 sentence]
 - [file or doc path] — [what it revealed, 1 sentence]
 
@@ -42,6 +44,7 @@ Rules:
 [2-3 sentences on how things work now]
 
 **Touched areas**
+
 - [area / project / namespace]
 - [area / project / namespace]
 
@@ -49,9 +52,11 @@ Rules:
 [1-2 sentences on what could break or need changing]
 
 **Overlapping specs**
+
 - [spec filename] — [overlap description, or "None found"]
 
 **Impacted behaviors/tests**
+
 - [behavior doc path] — [how it's affected, or "None found"]
 ```
 
@@ -68,28 +73,29 @@ Rules:
 ## Phase 3: Probe & Assess
 
 **Questions** (no cap — continue until ambiguity is resolved and the user confirms understanding; see SKILL.md Phase 3)
-1. [Question about why/what/size/risk/gaps]
+
+1. [Question about why/what/increments/risk/gaps]
 2. [Question...]
-... (add as many as needed — one per open ambiguity; do not truncate at 3)
+   ... (add as many as needed — one per open ambiguity; do not truncate at 3)
 
 **Health Assessment**
-| Dimension | Score | Notes |
-|-----------|-------|-------|
+
+| Dimension | Score  | Notes   |
+| --------- | ------ | ------- |
 | WHY       | 🟢🟡🔴 | [notes] |
 | WHAT      | 🟢🟡🔴 | [notes] |
-| SIZE      | 🟢🟡🔴 | [notes] |
 | RISK      | 🟢🟡🔴 | [notes] |
 | GAPS      | 🟢🟡🔴 | [notes] |
 
 **Blocking**
+
 - [Any 🔴 → list what must close before Phase 4]
-- [L-sized → list proposed split]
 ```
 
 Rules:
 
 - Any 🔴 blocks Phase 4. State the blocker explicitly.
-- L-sized work must be split into ≥2 independent specs before any single spec advances.
+- No size estimate and no split: the spec covers the whole need; a big need gets more increments in Phase 5.
 
 ---
 
@@ -99,12 +105,14 @@ Rules:
 ## Phase 3.5: Grill
 
 **Decision tree branches**
+
 1. [Branch: e.g., "Single file vs. multiple files"]
    - [Question with recommended answer]
 2. [Branch]
    - [Question]
 
 **New constraints or decisions**
+
 - [anything that changes the health assessment]
 
 **Updated Health Assessment**
@@ -128,6 +136,7 @@ Rules:
 **Spec file**: `docs/backlog/todo/YYYY-MM-DD-<slug>.md`
 
 **Drafted sections**
+
 - `## Why` — [1-line summary]
 - `## What` — [1-line summary]
 - [each content section drafted]
@@ -172,14 +181,14 @@ Completion — after the last section is approved:
 
 All six sections approved ✅
 
-| Section | Verdict |
-|---------|---------|
-| `## Why` | ✅ |
-| `## What` | ✅ |
-| `## What NOT` | ✅ |
-| `## Acceptance Criteria` | ✅ |
-| `## Examples` | ✅ |
-| `## Technical Notes` | ✅ |
+| Section                  | Verdict |
+| ------------------------ | ------- |
+| `## Why`                 | ✅      |
+| `## What`                | ✅      |
+| `## What NOT`            | ✅      |
+| `## Acceptance Criteria` | ✅      |
+| `## Examples`            | ✅      |
+| `## Technical Notes`     | ✅      |
 
 ---
 
@@ -212,25 +221,33 @@ Rules:
 ## Phase 5: Implementation Plan
 
 **Plan summary**
-[N] increments, estimated total: [size]
+[N] increments, one pull request each
 **Spec file updated**: `## Implementation Plan` section written ([N] increments)
 
 **Increments**
 
 ### 1. [Title]
+
+- **Goal**: [what changes once its pull request is merged, for whom — no code]
 - **What**: [files to create/modify/delete]
 - **How**: [key design decisions, naming, layout]
-- **Validation**: `[command]` → expected: [outcome]
-- **Commit**: `[type](scope): ...`
-- **Refactoring**: `- [ ]` subagent pass — [targets: smells to watch for / planned extractions]
+- **Validation**: full harness → green [+ increment-specific check, never a filtered test run]
+- **Commit**: `[type](scope): ...` [also the pull request title]
+- **Refactoring**: `- [ ]` subagent pass [bare — requested, never described]
 
 ### 2. [Title]
+
 ...
 
 **Risks & guardrails**
+
 - [DI ordering, shared singletons, boundary conversions, similar filenames]
+- [feature flag: which increment, why — RISK 🟡/🔴 or consumers see a behavior change]
+
+**Rollout observation**: [filled — signals + window | none: nothing changes in production]
 
 **Reference patterns**
+
 - [analogous code path to mirror]
 - [relevant ADR / domain doc / prior spec]
 ```
@@ -238,9 +255,12 @@ Rules:
 Rules:
 
 - Write the increments into the spec's `## Implementation Plan` section BEFORE presenting — the spec file is the handoff artifact, the chat output is only a mirror.
-- Each increment must be buildable + testable + committable in one cycle.
-- Every increment carries an unchecked `- [ ] **Refactoring**` sub-checkbox (subagent pass, Fowler / Uncle Bob) — implement checks it after the pass; specify never pre-checks it. `validate-spec.sh --require-plan` rejects a plan missing it.
-- Respect dependency order (domain before API, adapter before endpoint).
+- Each increment has one clear Goal a reviewer understands without the code, and What/How precise enough for an agent to implement and review it without guessing.
+- Each increment is delivered as its own pull request: shippable alone, passes the full harness alone, never needs a later increment to compile or pass tests, and leaves no code that nothing calls.
+- A preparatory refactoring is its own described increment (`Preparatory refactoring: …`, `refactor` commit), placed before the increment that needs it.
+- Every increment carries the bare, unchecked `- [ ] **Refactoring**: subagent pass` sub-checkbox — requested, never described; specify never pre-checks it. `validate-spec.sh --require-plan` rejects a plan missing it or describing it.
+- Post-deploy checks go to `## Rollout observation`, never to an increment.
+- Respect dependency order: each increment builds on what the merged earlier increments delivered.
 - One line per file/action where possible — keep it scannable.
 
 ---
@@ -254,12 +274,14 @@ Rules:
 **Status**: [current status]
 
 **Decision required**
+
 - ✅ **Go** — approve as written
 - 🔄 **Iterate** — refine and re-present
 - 🛑 **On-hold** — defer
 - 🗑️ **Reject** — won't do
 
 **What happens next**
+
 - Go → transition validates the spec (plan included) and status becomes `ready-to-implement`, then STOP
 - Iterate → back to relevant phase
 - On-hold → status becomes `on-hold`

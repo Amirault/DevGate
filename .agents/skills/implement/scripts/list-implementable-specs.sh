@@ -53,9 +53,8 @@ scan_dir() {
             fi
         fi
 
-        local project size title filename
+        local project title filename
         project=$(grep -m1 "^project:" "$spec" | sed 's/^project:[[:space:]]*//')
-        size=$(grep -m1 "^size:" "$spec" | sed 's/^size:[[:space:]]*//')
         title=$(grep -m1 "^# Spec:" "$spec" | sed 's/^# Spec:[[:space:]]*//')
         filename=$(basename "$spec")
 
@@ -65,9 +64,8 @@ scan_dir() {
             --arg title "$title" \
             --arg status "$status" \
             --arg project "$project" \
-            --arg size "$size" \
             --arg location "$location" \
-            '. + [{path: $path, filename: $filename, title: $title, status: $status, project: $project, size: $size, location: $location}]')
+            '. + [{path: $path, filename: $filename, title: $title, status: $status, project: $project, location: $location}]')
     done
 }
 

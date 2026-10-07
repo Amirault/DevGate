@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { PHASES } from "../domain/models.js";
 
 const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
 const AGENTS_DIR = path.resolve(TEST_DIR, "..", "..", "..", "..", "skills");
@@ -16,11 +17,17 @@ const MARKER_REFERENCE = ".agents/skills/specify/references/spec-marker.md";
 
 const SKILL_PATHS = [
   "specify/SKILL.md",
-  "implement/SKILL.md",
+  "deliver-increment/SKILL.md",
   "review/SKILL.md",
   "learn/SKILL.md",
 ];
-const MARKER_SKILL_PATHS = ["specify/SKILL.md", "implement/SKILL.md", "review/SKILL.md"];
+const MARKER_SKILL_PATHS = [
+  "specify/SKILL.md",
+  "deliver-increment/SKILL.md",
+  "implement/SKILL.md",
+  "review/SKILL.md",
+];
+const MARKER_PHASE = /: SPEC_MARKER v=1 spec_id=\S+ phase=([a-z-]+)/g;
 
 function readNormalized(relativePath: string): string {
   return fs
@@ -65,6 +72,23 @@ describe("skill capture source contract", () => {
       // When / Then
       expect(content).toContain(MARKER_STANDALONE);
       expect(content).toContain(MARKER_REFERENCE);
+    }
+  );
+
+  it.each(MARKER_SKILL_PATHS)(
+    "Given %s emits correlation markers, When their phase values are inspected, Then each one is a phase capture-spec-sessions binds",
+    (relativePath) => {
+      // Given
+      const content = readNormalized(relativePath);
+
+      // When
+      const phases = [...content.matchAll(MARKER_PHASE)].map((match) => match[1]);
+
+      // Then
+      expect(phases.length, `${relativePath} must emit a marker`).toBeGreaterThan(0);
+      for (const phase of phases) {
+        expect(PHASES, `${relativePath} emits phase=${phase}`).toContain(phase);
+      }
     }
   );
 });

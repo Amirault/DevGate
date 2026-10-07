@@ -1,6 +1,6 @@
 ---
 name: test-implementation
-description: "Single source of truth for C#/.NET test patterns in this project. Read this skill before writing any [Fact], [Test], or [Theory] — including simple ones. Always invoke when writing, modifying, or reviewing tests, and whenever the review skill delegates to test patterns. Covers: FIRST principles, Given/When/Then structure with title-case comments (// Given // When // Then), factory methods, AnyX default records with with-expressions, in-memory fakes for use-case tests, TestContainers for secondary adapters, Given_When_Should naming, FluentAssertions lean assertions, [Theory]/[InlineData] for finite inputs (enums), exclusion testing (assert what should NOT be there), false-positive prevention, and TestCategory tagging with [Description] on Spec tests."
+description: "Single source of truth for C#/.NET test patterns. Read before writing any [Fact], [Test] or [Theory], even simple ones. Invoke when writing, modifying or reviewing tests, and whenever tdd-cycle, coverage-guard or review delegates to test patterns."
 effort: medium
 ---
 
@@ -202,43 +202,7 @@ A secondary adapter IS the integration with the external system. Test it with a 
 - `MigrateAsync()` in `InitializeAsync` to apply the real schema
 - GIVEN seeds data directly through `DbContext`; WHEN calls the adapter; THEN reads back through `DbContext`
 
-```csharp
-public class PartnershipSavingAdapterTests : IAsyncLifetime
-{
-    private PostgreSqlContainer _dbContainer;
-    private PricingReleaseManagementDbContext _dbContext;
-    private PartnershipSavingAdapter _partnershipSavingAdapter;
-
-    public async Task InitializeAsync()
-    {
-        _dbContainer = new PostgreSqlBuilder().WithImage("postgres:15.1").Build();
-        await _dbContainer.StartAsync();
-
-        _dbContext = new PricingReleaseManagementDbContext(
-            new DbContextOptionsBuilder<PricingReleaseManagementDbContext>()
-                .UseNpgsql(_dbContainer.GetConnectionString()).Options);
-        await _dbContext.Database.MigrateAsync();
-
-        _partnershipSavingAdapter = new PartnershipSavingAdapter(_dbContext);
-    }
-
-    public async Task DisposeAsync() => await _dbContainer.DisposeAsync();
-
-    [Fact]
-    public async Task GivenExistingProduct_WhenAddingPartnership_ShouldPersistInDatabase()
-    {
-        // Given
-        var productId = (await _dbContext.Products.SingleAsync(p => p.Name == "SEED-PRODUCT")).Id;
-
-        // When
-        _partnershipSavingAdapter.AddPartnership("PART-001", "Partnership A", productId, "test-user");
-
-        // Then
-        var saved = await _dbContext.Partnerships.SingleOrDefaultAsync(p => p.Code == "PART-001");
-        saved.Should().NotBeNull();
-    }
-}
-```
+Worked example (xUnit + PostgreSQL + EF Core `IAsyncLifetime` fixture): read [references/secondary-adapter-testcontainers-example.md](references/secondary-adapter-testcontainers-example.md) before writing a new secondary-adapter test.
 
 ### Use-cases — always unit tests with in-memory fakes
 

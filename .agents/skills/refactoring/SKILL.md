@@ -1,6 +1,6 @@
 ---
 name: refactoring
-description: "Active refactoring guide for .NET/C# following SOLID principles and Fowler's catalog. Invoke whenever user says: refactor, clean up, simplify, extract, this is getting complex, too long, smells, or when a method exceeds ~10 lines, a class has multiple responsibilities, or parameters exceed 3-4. Also invoke proactively during implementation when you're about to write code that violates SOLID or YAGNI, or when creating/finding single-use Request/Response/DTO/Exception types in dedicated files. Covers: SRP/OCP/LSP/ISP/DIP violations with C# fix patterns, type colocation (nest single-use types inside their consumer class/interface), Fowler smells (Long Method, Feature Envy, Primitive Obsession, Shotgun Surgery, Data Clumps, Single-Use Type in Separate File), and refactoring decisions guided by KISS/YAGNI. Complements review (which detects smells) — this skill guides the fix."
+description: "Active refactoring guide for .NET/C# (SOLID, Fowler's catalog). Invoke on: refactor, clean up, simplify, extract, too long, smells; a method over ~10 lines, a class with several responsibilities, more than 3-4 parameters, or single-use Request/Response/DTO/Exception types in dedicated files. Also proactively when about to write code that violates SOLID or YAGNI. Guides the fix; review detects the smells."
 effort: medium
 ---
 
