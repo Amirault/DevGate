@@ -136,7 +136,7 @@ public interface IQuotePort {
 | **Long Method**                      | >10 lines, multiple levels of abstraction                            | Extract Method                         |
 | **Long Parameter List**              | >3-4 params                                                          | Introduce Parameter Object (C# record) |
 | **Feature Envy**                     | Method uses another class's data more than its own                   | Move Method                            |
-| **Primitive Obsession**              | `string partnershipCode`, `decimal premium` raw                      | Introduce Value Object                 |
+| **Primitive Obsession**              | `string customerCode`, `decimal premium` raw                      | Introduce Value Object                 |
 | **Data Clumps**                      | Same 3 params appear together repeatedly                             | Extract Record/Class                   |
 | **Shotgun Surgery**                  | 1 change touches 5+ files                                            | Move/consolidate                       |
 | **Divergent Change**                 | Class changes for multiple unrelated reasons                         | Extract Class (SRP)                    |

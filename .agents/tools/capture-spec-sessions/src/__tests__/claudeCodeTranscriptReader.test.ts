@@ -279,7 +279,7 @@ describe("ClaudeCodeTranscriptReader", () => {
   });
 
   it("Given one Claude Code session whose implement and review subagents emit their own phase markers, When extracted, Then each subagent transcript is bound to its phase", () => {
-    // Given — an autonomous-workflow run: both subagents share the parent sessionId
+    // Given — an orchestrated run: both subagents share the parent sessionId
     // and differ only by their agentId.
     const sessionId = "session-autonomous";
     writeTranscript(claudeRoot, sessionId, [
