@@ -5,7 +5,7 @@
 ### Spec first. Gates in between. Evidence at the end.
 
 **A spec-driven delivery workflow for AI coding agents.**<br/>
-Nine plain `SKILL.md` files that turn "build me X" into reviewed, tested, one-PR-at-a-time delivery.
+Ten plain `SKILL.md` files that turn "build me X" into reviewed, tested, one-PR-at-a-time delivery.
 
 ![Skills](https://img.shields.io/badge/skills-10-8a2be2)
 ![Runtimes](https://img.shields.io/badge/Claude%20Code%20%C2%B7%20Warp%20%C2%B7%20Hermes-supported-success)

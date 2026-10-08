@@ -69,7 +69,6 @@ Then, per its outcome:
 - `PR OPENED` (not the last increment) → Phase 2.
 - `SPEC IMPLEMENTED` (last increment, spec → `implemented`, PR opened with `rollout:observe` when `## Rollout observation` exists) → Phase 2.
 - `WAITING FOR MERGE` → Phase 4: nothing was delivered, so nothing to learn; report that the previous increment PR must be merged first.
-- `LEGACY PR OPENED` → Phase 4: the PR of a former-model branch was opened, no increment was delivered, so nothing to learn; report that the human merges it, then asks to continue.
 - `STOPPED` (BLOCKED or review cap) → abort.
 
 ### Phase 2 — LEARN: INCREMENT AUDIT (subagent, after every delivered increment)
@@ -91,7 +90,7 @@ Then launch the subagent:
 > `<verdicts, blockers fixed, open warnings and recommendations, decisions>`. Discard any finding
 > already covered by these learning PRs of the spec: `<title → URL list, or none>`. Docs root:
 > `../learning-<spec-slug>-<N>`: record every finding there and match it against its history
-> (`learn` does both). Never launch a subagent. Produce:
+> (`learn` does both). Never launch a subagent. These scoping rules and this report layout extend learn's own contract: its `when_one_item` suggestion is the `Top learning`, its `when_no_item` is `none`. Produce:
 >
 > ```markdown
 > # Increment Audit — <spec-slug>, increment <N>
@@ -126,7 +125,7 @@ Take the `Top learning` as-is (next ranked finding if it lacks evidence or a tar
 ```markdown
 # Workflow Report — <spec-slug>, increment <N> of <M>
 
-**Outcome**: PR OPENED | LEGACY PR OPENED | SPEC IMPLEMENTED | WAITING FOR MERGE | STOPPED BY HUMAN | ABORTED (<phase> — <increment N> — <reason>)
+**Outcome**: PR OPENED | SPEC IMPLEMENTED | WAITING FOR MERGE | STOPPED BY HUMAN | ABORTED (<phase> — <increment N> — <reason>)
 **Increment PR**: <URL> — branch workflow/<spec-slug>-<N>
 **Learning PR**: <URL> — branch learning/<spec-slug>-<N> | none (<learn found no new cross-spec improvement>)
 **Spec status**: <status>
