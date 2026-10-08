@@ -1,6 +1,6 @@
 # Secondary adapter test — TestContainers example
 
-Worked example for the rule in `SKILL.md` → _Secondary adapters — TestContainers_ (xUnit + PostgreSQL + EF Core, from ReleaseManagement).
+Worked example for the rule in `SKILL.md` → _Secondary adapters — a real engine_ (xUnit + PostgreSQL + EF Core).
 
 ```csharp
 public class OrderSavingAdapterTests : IAsyncLifetime

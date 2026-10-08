@@ -1,5 +1,7 @@
 # Review Patterns
 
+> The code samples are C#; read them as illustrations of the pattern and apply the equivalent in your language.
+
 ## Example Reviews
 
 ### Example 1: PASS — Clean Implementation

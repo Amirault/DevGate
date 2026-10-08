@@ -64,7 +64,7 @@ Detect code smells (Fowler's catalog) and clean code violations (Uncle Bob). Sug
 - Minor improvements → **RECOMMENDATION** (non-blocking, included in report)
 - Smell indicating likely bug or maintenance trap → **WARNING** (discuss before proceeding)
 
-**Note**: Build-time quality checks (analyzers, CSharpier) are enforced by the Full harness step of Phase 4 in `SKILL.md`.
+**Note**: Build-time quality checks (linters, analyzers, formatters) are enforced by the Full harness step of Phase 4 in `SKILL.md`.
 
 ## What "stay aware of the overall impact" means
 
