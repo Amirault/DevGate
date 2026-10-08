@@ -6,7 +6,7 @@
 
 **A spec-driven delivery workflow for AI coding agents.**<br/>
 Ten plain `SKILL.md` files that turn "build me X" into reviewed, tested, one-PR-at-a-time delivery.<br/>
-Drive it yourself, or **hand it to a headless agent** that works through the plan while you only approve and merge.
+Drive it step by step, let one command run a whole increment, or **hand it to a headless agent** that works through the plan while you only approve and merge.
 
 ![Skills](https://img.shields.io/badge/skills-10-8a2be2)
 ![Runtimes](https://img.shields.io/badge/Claude%20Code%20%C2%B7%20Warp%20%C2%B7%20Hermes-supported-success)
@@ -58,16 +58,16 @@ Agents are fast. Left alone they are also fast at building the **wrong thing**, 
 quietly widening scope. DevGate puts a human-approved gate between every step — and keeps the
 evidence, so the workflow improves with every spec.
 
-## Two ways to run it
+## Three ways to run it
 
-| | 🧑 **Interactive** | 🤖 **Headless** — [`autonomous-workflow`](.agents/skills/autonomous-workflow) |
-| --- | --- | --- |
-| **You type** | `/deliver-increment <spec>` | `/autonomous-workflow <spec>` — or tell Hermes "run the workflow on spec X" |
-| **One run =** | one increment → one draft PR | one increment → draft PR → **retro** → learning PR |
-| **A spec gap** | the agent asks you | the agent **decides and logs it** in the spec, then flags it in the PR |
-| **Phase work** | fresh subagents | fresh subagents — the orchestrator never does it itself |
-| **Then** | stops and asks to continue | stops and asks to continue |
-| **You keep** | the spec, the merge, `DONE` | the spec, the merge, `DONE` — it **never merges** |
+| | 🪜 **Step by step** | 🧑 **Interactive** | 🤖 **Headless** — [`autonomous-workflow`](.agents/skills/autonomous-workflow) |
+| --- | --- | --- | --- |
+| **You type** | one skill at a time: `/specify`, `/implement <spec> increment N`, `review`, `/learn` | `/deliver-increment <spec>` | `/autonomous-workflow <spec>` — or tell Hermes "run the workflow on spec X" |
+| **One command =** | one phase | one increment → one draft PR | one increment → draft PR → **retro** → learning PR |
+| **Commit and PR** | you | the agent | the agent |
+| **A spec gap** | you decide | the agent asks you | the agent **decides and logs it** in the spec, then flags it in the PR |
+| **Best for** | learning the workflow, or a task that needs close control | everyday use | long specs while you do something else |
+| **You keep** | everything | the spec, the merge, `DONE` | the spec, the merge, `DONE` — it **never merges** |
 
 ```mermaid
 flowchart LR
@@ -94,8 +94,9 @@ cp -R DevGate/.agents  your-project/.agents
 /specify                      # grill → spec → human review → ready-to-implement  (always with you)
 
 # 3. Then pick a mode
-/deliver-increment <spec>     # interactive: one increment → one draft PR
-/autonomous-workflow <spec>   # headless:    one increment → PR → retro → learning PR
+/implement <spec> increment 1  # step by step: one phase, you stay in control (then `review`, commit, PR by hand)
+/deliver-increment <spec>     # interactive: implement ▸ refactor ▸ review ▸ commit ▸ draft PR
+/autonomous-workflow <spec>   # headless:    the same, plus a retro and a learning PR
 
 # 4. Merge the PR, answer "continue", repeat — then say DONE
 /learn <spec>                 # retro on the whole spec (headless already ran one per increment)
