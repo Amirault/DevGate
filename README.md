@@ -25,6 +25,18 @@ flowchart LR
     D -. "one evidenced improvement" .-> A
 ```
 
+<div align="center">
+
+![From a scaffolded spec to a ready-to-implement spec, gated at every step](docs/demo/demo.gif)
+
+<sub>Recorded from the real DevGate scripts and one real headless <code>claude -p</code> run; the
+terminal window is a re-enactment. The prompt was written for the demo, the agent self-attests the
+spec's quality checklist, and the approval step was run by hand. A real <code>/specify</code> session
+adds the grill and your per-section approval first (not shown).
+<a href="docs/demo/render.py">How it was made</a></sub>
+
+</div>
+
 ## Why DevGate
 
 Agents are fast. Left alone they are also fast at building the **wrong thing**, skipping tests and

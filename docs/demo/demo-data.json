@@ -1,0 +1,81 @@
+{
+  "slug": "cart-discount",
+  "spec_id": "2026-10-08-cart-discount",
+  "spec_path": "docs/backlog/todo/2026-10-08-cart-discount.md",
+  "scaffold": {
+    "cmd": "bash .agents/skills/specify/scripts/create-spec.sh cart-discount",
+    "out": "✅ Spec created: docs/backlog/todo/2026-10-08-cart-discount.md"
+  },
+  "validate_fail": {
+    "cmd": "bash .agents/skills/specify/scripts/validate-spec.sh docs/backlog/todo/2026-10-08-cart-discount.md",
+    "out": [
+      "❌ Spec validation FAILED (3 issues):",
+      "  - Unresolved placeholders found ({{ ... }})",
+      "  - Examples: need at least one example per acceptance criterion plus one edge case",
+      "  - BLOCKED: Health check has 🔴 dimensions — resolve before approving"
+    ]
+  },
+  "prompt": ": SPEC_MARKER v=1 spec_id=2026-10-08-cart-discount phase=specify\n\nRun the line above first, as its own shell command, exactly as written (it is a shell no-op).\n\nThen: the file docs/backlog/todo/2026-10-08-cart-discount.md was scaffolded from the spec template. Fill it in for this change: in cart.js the 10% discount should apply from 100 included (>=), today it uses > so a cart worth exactly 100 pays full price. Keep it short: 3 [TEST] acceptance criteria, matching examples (plus one edge case), one single increment in the Implementation Plan with its unchecked Refactoring sub-checkbox. Run bash .agents/skills/specify/scripts/validate-spec.sh docs/backlog/todo/2026-10-08-cart-discount.md --require-plan and fix the spec until it exits 0. Do NOT change the status, do NOT transition the spec, do NOT touch cart.js.",
+  "spec_excerpt": {
+    "cmd": "grep -E '^- \\[TEST\\]|^- \\[ \\] Increment|\\*\\*(Goal|Commit)\\*\\*|\\[ \\] \\*\\*Refactoring' docs/backlog/todo/2026-10-08-cart-discount.md",
+    "out": [
+      "- [TEST] Given a cart worth exactly 100, When the total is computed, Then the 10% discount is applied",
+      "- [TEST] Given a cart worth more than 100, When the total is computed, Then the 10% discount is still applied",
+      "- [TEST] Given a cart worth less than 100, When the total is computed, Then no discount is applied",
+      "- [ ] Increment 1: Include the threshold in the cart discount",
+      "  - **Goal**: Customers whose cart is worth exactly 100 now get the 10% discount instead of paying full price.",
+      "  - **Commit**: fix(cart): apply 10% discount from 100 included",
+      "  - [ ] **Refactoring**: subagent pass"
+    ]
+  },
+  "transition": {
+    "cmd": "bash .agents/skills/specify/scripts/transition-spec.sh docs/backlog/todo/2026-10-08-cart-discount.md ready-to-implement",
+    "out": [
+      "✅ Spec validation PASSED",
+      "✅ docs/backlog/todo/2026-10-08-cart-discount.md: specifying -> ready-to-implement"
+    ]
+  },
+  "capture": {
+    "cmd": ".agents/tools/capture-spec-sessions/capture.sh --spec 2026-10-08-cart-discount --source claude-code",
+    "out": "wrote .agents/tools/capture-spec-sessions/spec-sessions/2026-10-08-cart-discount.jsonl (14 events, 1 conversations, complete=false)"
+  },
+  "header": {
+    "cmd": "jq -c 'select(.type==\"bundle_header\") | {phases_present, phases_missing, complete}' .agents/tools/capture-spec-sessions/spec-sessions/2026-10-08-cart-discount.jsonl",
+    "out": "{\"phases_present\":[\"specify\"],\"phases_missing\":[\"implement\",\"review\"],\"complete\":false}"
+  },
+  "provenance": "Recorded from a throwaway project: the real DevGate scripts (create-spec.sh, validate-spec.sh, transition-spec.sh, capture.sh) and one real headless 'claude -p --model sonnet' run that filled the scaffolded spec and iterated against validate-spec.sh. Absolute scratch-directory prefixes were stripped from printed paths. The window chrome, shell prompt, colours and typing animation are drawn by render.py; the interactive grill and per-section human review of a real /specify session are not shown.",
+  "agent_tools": [
+    {
+      "tool": "Bash",
+      "arg": ": SPEC_MARKER v=1 spec_id=2026-10-08-cart-discount phase=specify",
+      "result": []
+    },
+    {
+      "tool": "Read",
+      "arg": "docs/backlog/todo/2026-10-08-cart-discount.md",
+      "result": []
+    },
+    {
+      "tool": "Write",
+      "arg": "docs/backlog/todo/2026-10-08-cart-discount.md",
+      "result": []
+    },
+    {
+      "tool": "Bash",
+      "arg": "bash .agents/skills/specify/scripts/validate-spec.sh docs/backlog/todo/2026-10-08-cart-discount.md --require-plan",
+      "result": [
+        "❌ Spec validation FAILED (2 issues):",
+        "  - Examples: need at least one example per acceptance criterion plus one edge case",
+        "  - Spec Quality Checklist: 13 item(s) unchecked — verify each against the spec before approval"
+      ]
+    },
+    {
+      "tool": "Bash",
+      "arg": "python3 - <<'EOF' … && bash .agents/skills/specify/scripts/validate-spec.sh docs/backlog/todo/2026-10-08-cart-discount.md --require-plan",
+      "result": [
+        "✅ Spec validation PASSED"
+      ]
+    }
+  ],
+  "agent_tools_note": "Tool names, arguments and results are from the captured session (events 2-13); the heredoc edit is abbreviated with an ellipsis."
+}
