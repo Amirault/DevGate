@@ -7,7 +7,7 @@
 **A spec-driven delivery workflow for AI coding agents.**<br/>
 Nine plain `SKILL.md` files that turn "build me X" into reviewed, tested, one-PR-at-a-time delivery.
 
-![Skills](https://img.shields.io/badge/skills-9-8a2be2)
+![Skills](https://img.shields.io/badge/skills-10-8a2be2)
 ![Runtimes](https://img.shields.io/badge/Claude%20Code%20%C2%B7%20Warp%20%C2%B7%20Hermes-supported-success)
 ![Node](https://img.shields.io/badge/node-%E2%89%A5%2022-3c873a)
 ![Python](https://img.shields.io/badge/python-3-3776ab)
@@ -140,6 +140,7 @@ Everything lives in [`.agents/`](.agents):
 | [`grilling`](.agents/skills/grilling) | Relentless interview that stress-tests a plan *(mandatory in specify)* |
 | [`human-review-spec`](.agents/skills/human-review-spec) | Per-section review with the human *(mandatory in specify)* |
 | [`deliver-increment`](.agents/skills/deliver-increment) | Orchestrates one increment: implement ▸ refactor ▸ review ▸ commit ▸ PR |
+| [`autonomous-workflow`](.agents/skills/autonomous-workflow) | Entry point for a headless agent (e.g. Hermes): one increment ▸ its PR ▸ `learn` ▸ learning PR, then stops and asks to continue |
 | [`implement`](.agents/skills/implement) | Implements ONE increment *(the `implement(N)` subagent)* |
 | [`refactoring`](.agents/skills/refactoring) | Fowler's smells, SOLID, Uncle Bob — run after every increment |
 | [`test-implementation`](.agents/skills/test-implementation) | FIRST, Given/When/Then, exclusion testing |
