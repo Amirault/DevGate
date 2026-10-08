@@ -84,7 +84,7 @@ flowchart LR
 
 ## Quick start
 
-Needs a Unix shell, **Node.js ≥ 22** and **Python 3**. `refactoring` and `test-implementation` target C#/.NET; the rest is language-agnostic (more in *Requirements* below).
+Needs a Unix shell, **Node.js ≥ 22** and **Python 3**. The skills are language-agnostic; C# / .NET code examples ship as references (more in *Requirements* below).
 
 ```bash
 # 1. Copy the workflow into your project
@@ -272,7 +272,7 @@ Works from any directory or git worktree; bundles land in the main checkout's gi
 - Unix-like shell, **Node.js ≥ 22** (the capture tool installs its own dependencies on first use), **Python 3** (`learnings.py`, stdlib only)
 - **Warp**, **Claude Code** or **Hermes** as the session source — the marker must be in that runtime's local store; cloud sessions are not captured
 - A project **harness**: `harness.md` assumes a Lefthook pre-commit hook run through `mise` — adapt [`harness.md`](.agents/skills/specify/references/harness.md) to your own checks
-- `refactoring` and `test-implementation` target **C#/.NET**; the other skills are language-agnostic
+- **Language-agnostic**: `refactoring` and `test-implementation` state their rules in pseudo-code and ship a concrete [C# / .NET reference](.agents/skills/test-implementation/references/csharp.md) each; add `references/<language>.md` for yours
 - Spec templates use generic project placeholders; scripts are shell, tested on macOS and Linux
 
 </details>

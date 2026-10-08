@@ -23,7 +23,7 @@ mise exec -- lefthook run pre-commit --no-tty
 
 ## Rules
 
-- **The full harness validates an increment. A filtered run never does.** `dotnet test --filter …` or a single test project gives fast feedback while coding, never the proof that an increment is done.
+- **The full harness validates an increment. A filtered run never does.** a filtered test run (`dotnet test --filter …`, `vitest -t …`, `pytest -k …`) or a single test project gives fast feedback while coding, never the proof that an increment is done.
 - **Red harness → the increment is not done**, whatever the focused tests say.
 - **Never trust a claim of green.** A reviewer reruns the harness itself.
 - Never bypass the hook (`--no-verify`) to get an increment through (`AGENTS.md` → Never Do).

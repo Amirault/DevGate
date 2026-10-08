@@ -95,7 +95,7 @@ When a criterion names an observable write contract — such as a key, value, TT
 
 For behavior declared unchanged where the focused test is already green, perform a temporary false-positive probe or equivalent proof. Before the probe, snapshot the exact tracked state of only the affected files. Make that contract drift, confirm the mapped test fails for the expected reason, restore only the temporary mutation, then verify those files match their pre-probe snapshot exactly. Never use a broad reset, restore, or clean that could discard implementation work.
 
-**4. Validate — full harness** — While coding, a filtered run (`dotnet test --filter "FullyQualifiedName~RelevantTestClass"`) gives fast feedback. It never validates the increment: run the full harness (`.agents/skills/specify/references/harness.md`) — stage, then `mise exec -- lefthook run pre-commit --no-tty` from the project directory. Red → fix and rerun. A red you cannot fix inside increment N's footprint → `STATUS: BLOCKED harness red: <failing command and output>`.
+**4. Validate — full harness** — While coding, a filtered run (your test runner's filter (e.g. `dotnet test --filter …`, `vitest -t …`, `pytest -k …`)) gives fast feedback. It never validates the increment: run the full harness (`.agents/skills/specify/references/harness.md`) — stage, then `mise exec -- lefthook run pre-commit --no-tty` from the project directory. Red → fix and rerun. A red you cannot fix inside increment N's footprint → `STATUS: BLOCKED harness red: <failing command and output>`.
 
 ### Phase 4 — REPORT
 

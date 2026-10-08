@@ -1,10 +1,19 @@
 ---
 name: test-implementation
-description: "Single source of truth for C#/.NET test patterns. Read before writing any [Fact], [Test] or [Theory], even simple ones. Invoke when writing, modifying or reviewing tests, and whenever review or deliver-increment delegates to test patterns."
+description: "Language-agnostic single source of truth for test patterns: tests as documentation, FIRST, Given/When/Then, naming, assertions on behavior, the right test per layer, test doubles last, false-positive prevention. Read before writing any test, even a simple one. Invoke when writing, modifying or reviewing tests, and whenever review or deliver-increment delegates to test patterns. Examples in pseudo-code; per-language references (C#/.NET included) hold concrete code."
 effort: medium
 ---
 
 # Test Implementation
+
+**Language**: the rules below hold in any language; the examples are pseudo-code. Concrete code, naming syntax and tooling live in `references/<language>.md` (available: [C# / .NET](references/csharp.md), xUnit + FluentAssertions + Testcontainers). No reference for your language → apply the same rules with the project's test framework and conventions.
+
+| Concept | Rule below | C# / .NET | TypeScript | Python |
+| --- | --- | --- | --- | --- |
+| Test case | one behaviour | `[Fact]` | `it(...)` | `def test_...` |
+| Parametrised case | finite inputs | `[Theory]` + `[InlineData]` | `it.each` | `@pytest.mark.parametrize` |
+| Baseline + override | only what matters | `AnyOrder with { Total = 200m }` | `{ ...anyOrder, total: 200 }` | `replace(any_order, total=200)` |
+| Real dependency in a test | secondary adapters | Testcontainers | Testcontainers | testcontainers-python |
 
 ## Tests are documentation
 
@@ -28,151 +37,112 @@ Every test has exactly three sections, separated by comments.
 
 Set up initial state, dependencies, and inputs.
 
-- Use a **shared factory method** to wire dependencies — avoid repeating setup across tests.
+- Use a **shared factory function** to wire dependencies — avoid repeating setup across tests.
 - The factory accepts only what varies; defaults handle the rest.
-- Shared context (builders, fixtures) must be **small, isolated, co-located** in the same test class.
+- Shared context (builders, fixtures) must be **small, isolated, co-located** in the same test file or class.
 - GIVEN prepares but never acts — no side-effect-producing calls here.
-- **Only expose what matters** — objects must be fully constructed (all fields valid), but only the field that drives the scenario should be visible. Use a **baseline default + `with` expression** so irrelevant construction details never appear in the test body.
+- **Only expose what matters** — objects must be fully constructed (all fields valid), but only the field that drives the scenario should be visible. Use a **baseline default + override** so irrelevant construction details never appear in the test body.
 
-```csharp
+```text
 // ✅ Fully valid object; only the relevant field is visible
-var order = AnyOrder with { Total = 200m };
+order = anyOrder with total = 200
 
-// ❌ Construction noise — Id and Status are irrelevant to a threshold test
-var order = new Order { Id = Guid.NewGuid(), Total = 200m, Status = OrderStatus.Confirmed };
+// ❌ Construction noise — id and status are irrelevant to a threshold test
+order = Order(id=newId(), total=200, status=CONFIRMED)
 ```
 
-`AnyOrder` is a `static readonly` record field in the test class holding sensible defaults for every property.
+`anyOrder` is a constant in the test file holding sensible defaults for every property.
 
-```csharp
-// ✅ Factory method — wiring is centralized, each test only specifies what matters
-private static GetDeployedVersionDetailsUseCase CreateGetDeployedVersionDetailsUseCase(
-    List<Deployment> deployments = null,
-    List<Partnership> partnerships = null
-) => new(
-    new InMemoryDeploymentRepository(deployments ?? []),
-    new InMemoryPartnershipRepository(partnerships ?? [])
-);
-```
+```text
+// ✅ Factory — wiring is centralized, each test only specifies what matters
+createGetVersionDetails(deployments = [], partnerships = []) =
+    GetVersionDetails(InMemoryDeployments(deployments), InMemoryPartnerships(partnerships))
 
-```csharp
 // ❌ Duplicated setup in every test — noisy, fragile, hides intent
-[Fact]
-public async Task Test1()
-{
-    var repo1 = new InMemoryDeploymentRepository([...]);
-    var repo2 = new InMemoryPartnershipRepository([...]);
-    var repo3 = new InMemoryConfigPort([...]);
-    var getDeployedVersionDetails = new GetDeployedVersionDetailsUseCase(repo1, repo2, repo3);
-    // ...
-}
+test1:
+    repo1 = InMemoryDeployments([...]); repo2 = InMemoryPartnerships([...]); repo3 = InMemoryConfig([...])
+    getVersionDetails = GetVersionDetails(repo1, repo2, repo3)
 ```
 
 ### WHEN — one action through the public entry point
 
-Execute the single behavior under test through the **public entry point of the layer being tested**. Never call private or internal methods directly — do not execute implementation details but focus on the layer entry point (e.g. API endpoint for a primary adapter, public method for a use-case, interface for a secondary adapter).
+Execute the single behavior under test through the **public entry point of the layer being tested**. Never call private or internal functions directly — do not execute implementation details but focus on the layer entry point (e.g. API endpoint for a primary adapter, public function for a use case, interface for a secondary adapter).
 
 One WHEN per test — if you need more than one instruction, you may be testing multiple behaviours; refine the test scope and split by behaviour.
 
-```csharp
+```text
 // ✅ Call the public entry point
-var result = await getDeployedVersionDetails.ExecuteAsync(versionId);
+result = getVersionDetails.execute(versionId)
 
-// ❌ Call an internal method directly — couples test to implementation
-var filtered = getDeployedVersionDetails.FilterDeployments(deployments);
+// ❌ Call an internal function directly — couples the test to implementation
+filtered = getVersionDetails.filterDeployments(deployments)
 ```
 
 ### THEN — assert behavior, not implementation
 
 Verify observable outcomes. Never assert on internal state or call counts.
 
-```csharp
+```text
 // ✅ Assert on returned data
-result.PartnershipConfiguration.PartnershipCode.Should().Be("PART001");
+expect(result.partnershipCode).toBe("PART001")
 
 // ❌ Assert on mock internals
-mockRepo.Verify(r => r.SelectAllAsync(It.IsAny<Expression>()), Times.Once);
+expect(mockRepo.selectAll).toHaveBeenCalledTimes(1)
 ```
 
 **Rules for lean assertions:**
 
-- **Assert one behaviour** — a behaviour often maps to a single `.Should()` call that directly mirrors the test name. A small cohesive set of assertions is acceptable when they all describe the same behaviour; avoid overlapping or redundant ones. Example: don't assert `NotNull` when you can directly assert the value.
-- **No redundant assertions** — never guard with `result.Should().NotBeNull()` before accessing a property; a null result will fail the next assertion with a clear message.
+- **Assert one behaviour** — a behaviour often maps to a single assertion that directly mirrors the test name. A small cohesive set of assertions is acceptable when they all describe the same behaviour; avoid overlapping or redundant ones. Example: don't assert "not null" when you can directly assert the value.
+- **No redundant assertions** — never guard with a not-null check before accessing a property; a null result will fail the next assertion with a clear message.
 - **Match the test name** — the assertion should echo exactly what the test name claims. Avoid asserting things the test name does not declare.
-- **Side effects on ports must be verified** — if the use-case writes to a port (saves, updates, deletes), write a dedicated test that asserts the port's state via the in-memory fake. Pass the in-memory instance to both the factory method (e.g. `CreateUpdateOrderPriceUseCase`) and the assertion.
+- **Side effects on ports must be verified** — if the use case writes to a port (saves, updates, deletes), write a dedicated test that asserts the port's state via the in-memory fake. Pass the same in-memory instance to both the factory and the assertion.
 
-```csharp
+```text
 // ✅ One assertion — matches "ShouldReduceTotalByTenPercent"
-result.DiscountedTotal.Should().Be(180m);
+expect(result.discountedTotal).toBe(180)
 
 // ❌ Three assertions — redundant null guard + extra assertion not claimed by the test name
-result.Should().NotBeNull();
-result.DiscountedTotal.Should().Be(180m);
-result.DiscountApplied.Should().BeTrue();
+expect(result).notNull(); expect(result.discountedTotal).toBe(180); expect(result.discountApplied).toBe(true)
 ```
 
-```csharp
+```text
 // ✅ Dedicated test — asserts the side effect on the port directly
-[Fact]
-public async Task GivenOrder_WhenUpdatingPrice_ShouldPersistNewPriceToRepository()
-{
+test "GivenOrder_WhenUpdatingPrice_ShouldPersistNewPriceToRepository":
     // Given
-    var order = AnyOrder with { Price = 100m };
-    var repository = new InMemoryOrderRepository([order]);
-    var updateOrderPrice = CreateUpdateOrderPriceUseCase(repository);
-
+    order = anyOrder with price = 100
+    repository = InMemoryOrders([order])
+    updateOrderPrice = createUpdateOrderPrice(repository)
     // When
-    await updateOrderPrice.UpdatePriceAsync(order.Id, 150m);
-
+    updateOrderPrice.execute(order.id, 150)
     // Then
-    var saved = await repository.GetByIdAsync(order.Id);
-    saved.Price.Should().Be(150m);
-}
+    expect(repository.getById(order.id).price).toBe(150)
 
 // ❌ Only verifies the return value — the persistence side effect is never checked
-result.Price.Should().Be(150m);
+expect(result.price).toBe(150)
 ```
 
 ## Naming: Given_When_Should
 
-**Format**: `Given<Context>_When<Action>_Should<Expected>`
+**Format**: `Given<Context>_When<Action>_Should<Expected>` (adapt the casing to the language's convention, e.g. a sentence string in `it("given … when … should …")`).
 
 All three parts are **mandatory**. Use domain language — no technical jargon.
 
-```csharp
+```text
 // ✅ Clear context, action, and expectation in domain terms
-GivenDeploymentWithPartnership_WhenGettingVersionDetails_ShouldReturnPartnershipConfiguration()
-GivenNoDeployment_WhenGettingVersionDetails_ShouldReturnNull()
-GivenPartnershipCodeUnknown_WhenReadingConfiguration_ShouldReturnNull()
+GivenDeploymentWithPartnership_WhenGettingVersionDetails_ShouldReturnPartnershipConfiguration
+GivenNoDeployment_WhenGettingVersionDetails_ShouldReturnNothing
 
 // ❌ Missing Given — unclear initial context
-WhenDeploymentExists_ShouldReturnDetails()
+WhenDeploymentExists_ShouldReturnDetails
 
 // ❌ Technical jargon instead of domain language
-TestGetDeployedVersionDetails_Case1()
-ExecuteAsync_ReturnsNotNull_WhenDataExists()
+TestGetVersionDetails_Case1
+execute_returnsNotNull_whenDataExists
 ```
 
 ## Test category
 
-Tag every fixture class with its `TestCategory`: `Spec` (drives a use case through its public entry point with fakes, outer TDD loop), `Unit` (a single class in isolation, inner TDD loop), `Integration` (an adapter against the real technology it wraps), `Contract` (a shared suite run against every adapter of a port, or a check that a partner still honors an assumed contract), `Architecture` (NetArchTest fitness function). Full definitions: the project's `AGENTS.md` → Testing.
-
-```csharp
-[Category(nameof(TestCategory.Spec))]
-public class PayloadNegativeDecimal
-{
-    [Test]
-    [Description(
-        "A negative decimal value in a numeric payload field is accepted when creating a quote"
-    )]
-    public async Task GivenNegativeDecimalPayload_WhenCreatingOrder_ShouldAcceptRequest()
-    {
-        // ...
-    }
-}
-```
-
-`[Description]` is mandatory on `Spec` tests: the business sentence a non-developer would read, independent of the method name — it is what living documentation extracts.
+When the project tags its tests, use one category per test class or file: `Spec` (drives a use case through its public entry point with fakes, outer TDD loop), `Unit` (a single unit in isolation, inner TDD loop), `Integration` (an adapter against the real technology it wraps), `Contract` (a shared suite run against every adapter of a port, or a check that a partner still honors an assumed contract), `Architecture` (a fitness function on dependencies). Full definitions: the project's `AGENTS.md`, when it has a Testing section. When the framework supports a human-readable description on a `Spec` test, write one: the business sentence a non-developer would read, independent of the test name — it is what living documentation extracts.
 
 ## Expressiveness over cleverness
 
@@ -182,59 +152,47 @@ Test code should read like prose. Favor clarity over brevity.
 - Avoid magic values — use named constants or explain intent inline
 - Keep the Given section scannable: a reader should understand the scenario in seconds
 
-```csharp
+```text
 // ✅ Expressive — reads like a story
-var expiredOrder = AnyOrder with { Status = OrderStatus.Expired };
+expiredOrder = anyOrder with status = EXPIRED
 
 // ❌ Opaque — requires mental parsing
-var o = AnyOrder with { Status = (OrderStatus)3 };
+o = anyOrder with status = 3
 ```
 
 ## Test the right layer with the right tool
 
-Choose the test strategy based on **which layer you are testing**, note on preference for “more real”:
+Choose the test strategy based on **which layer you are testing**, preferring "more real" over "more mocked":
 
-### Secondary adapters — TestContainers
+### Secondary adapters — a real engine
 
-A secondary adapter IS the integration with the external system. Test it with a real engine via TestContainers: this catches SQL mapping issues, ORM edge cases, and migration correctness that no fake can reveal.
+A secondary adapter IS the integration with the external system. Test it against the real technology it wraps, started in a throwaway container (Testcontainers or equivalent): this catches mapping issues, ORM edge cases, and migration correctness that no fake can reveal.
 
-- Lifecycle via `IAsyncLifetime` (`InitializeAsync` / `DisposeAsync`)
-- `MigrateAsync()` in `InitializeAsync` to apply the real schema
-- GIVEN seeds data directly through `DbContext`; WHEN calls the adapter; THEN reads back through `DbContext`
+- Start the container and apply the real schema/migrations in the test setup; dispose it in teardown
+- GIVEN seeds data directly through the database client; WHEN calls the adapter; THEN reads back through the database client
 
-Worked example (xUnit + PostgreSQL + EF Core `IAsyncLifetime` fixture): read [references/secondary-adapter-testcontainers-example.md](references/secondary-adapter-testcontainers-example.md) before writing a new secondary-adapter test.
+C# worked example (xUnit + PostgreSQL + EF Core): [references/csharp-secondary-adapter-testcontainers.md](references/csharp-secondary-adapter-testcontainers.md).
 
-### Use-cases — always unit tests with in-memory fakes
+### Use cases — always unit tests with in-memory fakes
 
-Use-case tests must stay **pure unit tests**: fast, isolated, no containers. The adapter’s correctness is already guaranteed by its TestContainers tests — do not re-verify it here. Wire in-memory fakes through the adapter interface.
+Use-case tests must stay **pure unit tests**: fast, isolated, no containers. The adapter's correctness is already guaranteed by its real-engine tests — do not re-verify it here. Wire in-memory fakes through the adapter interface.
 
-```csharp
-// ✅ In-memory — executes real filtering logic; adapter correctness covered by TestContainers
-private sealed class InMemoryDeploymentRepository(List<Deployment> deployments)
-    : IRepository<Deployment>
-{
-    public Task<IEnumerable<Deployment>> SelectAllAsync(
-        Expression<Func<Deployment, bool>> whereClause,
-        CancellationToken ct = default)
-    {
-        var compiled = whereClause.Compile();
-        return Task.FromResult<IEnumerable<Deployment>>(
-            deployments.Where(compiled).ToList());
-    }
-    // Other methods → throw new NotImplementedException()
-}
+```text
+// ✅ In-memory — executes real filtering logic; adapter correctness covered by its own integration test
+class InMemoryDeployments implements Repository<Deployment>:
+    constructor(items)
+    selectAll(predicate) = items.filter(predicate)
+    // other operations → throw "not implemented"
 ```
 
 ### Test doubles — last resort
 
 Prefer custom doubles (in-memory fakes, hand-written spies) over mock frameworks. Reserve mock frameworks only for third-party boundaries you cannot own: HTTP clients, external SDKs. Even then, prefer a thin adapter with an in-memory implementation.
 
-```csharp
+```text
 // ❌ Mock — hides behavior behind configuration, brittle to refactoring
-var mockRepo = new Mock<IRepository<Deployment>>();
-mockRepo
-    .Setup(r => r.SelectAllAsync(It.IsAny<Expression<Func<Deployment, bool>>>(), default))
-    .ReturnsAsync(new List<Deployment> { deployment });
+mockRepo = mock(Repository<Deployment>)
+when(mockRepo.selectAll(any)).thenReturn([deployment])
 ```
 
 ## False-positive prevention
@@ -243,41 +201,26 @@ A test that cannot fail is worthless.
 
 - **Always verify failure**: after updating an existing test, ensure it can both fail and succeed for the corresponding checked behaviour.
 - **Test exclusions, not just inclusions**: if logic filters items, assert that non-matching items are _absent_.
-- **Finite inputs → exhaustive coverage**: for enums or small value sets, test every value using `[Theory]`/`[InlineData]`. Never write one `[Fact]` per enum value — collapse them into a single theory.
+- **Finite inputs → exhaustive coverage**: for enums or small value sets, test every value with one parametrised test. Never write one test per enum value — collapse them into a single parametrised test.
 
-```csharp
-// ✅ One [Theory] — every enum value covered, only what varies is visible
-[Theory]
-[InlineData(LoyaltyLevel.None,   1000m)]
-[InlineData(LoyaltyLevel.Silver,  950m)]
-[InlineData(LoyaltyLevel.Gold,    900m)]
-public async Task GivenContract_WhenApplyingDiscount_ShouldApplyCorrectRate(
-    LoyaltyLevel loyalty, decimal expectedPremium)
-{
-    // Given
-    var contract = AnyContract with { Loyalty = loyalty };
-    var applyDiscount = CreateApplyDiscountUseCase([contract]);
+```text
+// ✅ One parametrised test — every enum value covered, only what varies is visible
+each (loyalty, expectedPremium) in [(NONE, 1000), (SILVER, 950), (GOLD, 900)]:
+    test "GivenContract_WhenApplyingDiscount_ShouldApplyCorrectRate":
+        contract = anyContract with loyalty = loyalty
+        result = createApplyDiscount([contract]).execute(contract.id)
+        expect(result.discountedPremium).toBe(expectedPremium)
 
-    // When
-    var result = await applyDiscount.ExecuteAsync(contract.Id);
-
-    // Then
-    result.DiscountedPremium.Should().Be(expectedPremium);
-}
-
-// ❌ Three [Fact]s — adding a new enum value silently misses a test
-[Fact] public async Task GivenSilverLoyalty_... { ... }
-[Fact] public async Task GivenGoldLoyalty_...  { ... }
-[Fact] public async Task GivenNoLoyalty_...    { ... }
+// ❌ Three separate tests — adding a new enum value silently misses a test
 ```
 
-```csharp
+```text
 // ✅ Tests both presence AND absence
-result.Should().ContainSingle().Which.Name.Should().Be("AUTO_INSURANCE");
-result.Should().NotContain(p => p.Name == "HOME_INSURANCE");
+expect(result).toHaveSingleItem(named "AUTO_INSURANCE")
+expect(result).notToContain(named "HOME_INSURANCE")
 
 // ❌ Only tests the happy path — a bug returning everything would still pass
-result.Should().Contain(p => p.Name == "AUTO_INSURANCE");
+expect(result).toContain(named "AUTO_INSURANCE")
 ```
 
 ## Test ordering — newspaper metaphor
@@ -295,7 +238,7 @@ A reader skimming the file should understand the feature from the first few test
 
 - **Do**: test null, empty, missing, and boundary values.
 - **Do**: assert what is **absent**, not only what is present — a filter test must verify the excluded items too.
-- **Do**: test **every value** when the input is finite (enum, fixed list) — use `[Theory]`/`[InlineData]` or `[TestCase]`.
-- **Do**: write one test per **distinct behaviour**, not per method.
+- **Do**: test **every value** when the input is finite (enum, fixed list) — use a parametrised test.
+- **Do**: write one test per **distinct behaviour**, not per function.
 - **Don't**: stop after the happy path.
 - **Don't**: test more than one behaviour in a single test.

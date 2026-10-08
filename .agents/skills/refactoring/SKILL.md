@@ -1,6 +1,6 @@
 ---
 name: refactoring
-description: "Active refactoring guide for .NET/C# (SOLID, Fowler's catalog). Invoke on: refactor, clean up, simplify, extract, too long, smells; a method over ~10 lines, a class with several responsibilities, more than 3-4 parameters, or single-use Request/Response/DTO/Exception types in dedicated files. Also proactively when about to write code that violates SOLID or YAGNI. Guides the fix; review detects the smells."
+description: "Language-agnostic active refactoring guide (SOLID, Fowler's catalog). Invoke on: refactor, clean up, simplify, extract, too long, smells; a method over ~10 lines, a class with several responsibilities, more than 3-4 parameters, or single-use Request/Response/DTO/Exception types in dedicated files. Also proactively when about to write code that violates SOLID or YAGNI. Guides the fix; review detects the smells. Examples in pseudo-code; per-language references (C#/.NET included) hold concrete code."
 effort: medium
 ---
 
@@ -8,9 +8,11 @@ effort: medium
 
 Refactoring changes structure without changing behavior. A test suite must stay green at every step.
 
+**Language**: the rules below hold in any language; the examples are pseudo-code. Concrete code and the test command live in `references/<language>.md` (available: [C# / .NET](references/csharp.md)). No reference for your language → apply the same rules with its idioms, and use the project's own test command.
+
 ## Before Starting
 
-1. Confirm tests are green: `dotnet test --blame-crash`
+1. Confirm tests are green, with the project's test command (see the harness, `.agents/skills/specify/references/harness.md`)
 2. Identify the smell (see catalog below)
 3. Pick the smallest safe refactoring
 4. Run tests after each step — never accumulate steps
@@ -21,128 +23,101 @@ Refactoring changes structure without changing behavior. A test suite must stay 
 
 ### S — Single Responsibility Principle
 
-**Smell**: class with >1 reason to change; method that does fetch + transform + persist.
+**Smell**: unit (class, module) with >1 reason to change; function that does fetch + transform + persist.
 
-**Fix**: Extract Class, Extract Method.
+**Fix**: Extract Class/Module, Extract Function.
 
-```csharp
-// ❌ UseCase fetches, computes, and saves
-public async Task ExecuteAsync(Request req) {
-    var data = await _repo.GetAsync(req.Id);    // fetch
-    var computed = data.Price * 0.9m;           // compute
-    await _repo.SaveAsync(data with { Price = computed }); // save
-}
+```text
+// ❌ One function fetches, computes, and saves
+execute(req):
+    data = repo.get(req.id)            // fetch
+    computed = data.price * 0.9        // compute
+    repo.save(data with price=computed) // save
 
-// ✅ Each step is a named method
-public async Task ExecuteAsync(Request req) {
-    var data = await FetchAsync(req.Id);
-    var discounted = ApplyDiscount(data);
-    await PersistAsync(discounted);
-}
+// ✅ Each step is a named function
+execute(req):
+    data = fetch(req.id)
+    discounted = applyDiscount(data)
+    persist(discounted)
 ```
 
 ### O — Open/Closed Principle
 
-**Smell**: `switch`/`if-else` on type/enum that grows with every new case.
+**Smell**: `switch`/`if-else` on a type or enum that grows with every new case.
 
-**Fix**: Introduce polymorphism (strategy pattern), or use a dictionary dispatch.
+**Fix**: Introduce polymorphism (strategy), or a lookup table of handlers.
 
-```csharp
-// ❌ Switch that breaks with every new engine
-switch (engineType) {
-    case "gembox": return _gembox.Calculate(req);
-    case "engine-b": return _engineB.Calculate(req);
-}
+```text
+// ❌ Branches that grow with every new engine
+if engineType == "a": return engineA.calculate(req)
+if engineType == "b": return engineB.calculate(req)
 
-// ✅ Port + adapter — new engine = new class, no existing code changes
-public interface IPricingEnginePort { Task<Result> CalculateAsync(Request req); }
+// ✅ Port + adapter — a new engine = a new unit, no existing code changes
+interface PricingEnginePort { calculate(req): Result }
 ```
 
 ### L — Liskov Substitution Principle
 
-**Smell**: Subclass throws `NotImplementedException`, overrides method to do nothing, or narrows preconditions.
+**Smell**: a subtype throws "not implemented", overrides a method to do nothing, or narrows preconditions.
 
 **Fix**: Replace inheritance with composition; use interfaces for shared behavior.
 
 ### I — Interface Segregation Principle
 
-**Smell**: Interface with 5+ methods where callers only use 1-2; `NotImplementedException` in adapters.
+**Smell**: an interface with 5+ operations where callers use 1-2; "not implemented" stubs in adapters.
 
-**Fix**: Split interface into focused ports.
+**Fix**: Split the interface into focused ports.
 
-```csharp
-// ❌ Fat interface — saving adapter forced to implement retrieval
-public interface IQuotePort { Save(); Get(); Delete(); List(); Archive(); }
+```text
+// ❌ Fat interface — a saving adapter is forced to implement retrieval
+interface QuotePort { save, get, delete, list, archive }
 
 // ✅ Focused ports — each use case depends only on what it needs
-public interface IQuoteSavingPort { Task SaveAsync(Quote q); }
-public interface IQuoteRetrievePort { Task<Quote> GetAsync(string id); }
+interface QuoteSavingPort   { save(quote) }
+interface QuoteRetrievePort { get(id): Quote }
 ```
 
 ### D — Dependency Inversion Principle
 
-**Smell**: Use case instantiates concrete adapter with `new`; Application imports Infrastructure namespace.
+**Smell**: a use case instantiates a concrete adapter itself; the application layer imports the infrastructure layer.
 
-**Fix**: Inject via constructor, declare as port interface in Application.
+**Fix**: Inject the dependency, declare it as a port owned by the application layer.
 
-```csharp
-// ❌ Use case depends on concrete implementation
-public class CreateQuoteUseCase {
-    private readonly CosmosDbAdapter _db = new CosmosDbAdapter(); // WRONG
-}
+```text
+// ❌ Use case depends on a concrete implementation
+class CreateQuote { db = new CosmosDbAdapter() }   // WRONG
 
-// ✅ Depends on port, injected at construction
-public class CreateQuoteUseCase(IQuoteSavingPort quoteSaving) { }
+// ✅ Depends on a port, injected at construction
+class CreateQuote { constructor(quoteSaving: QuoteSavingPort) }
 ```
 
 ## Type Colocation → Reduce File Count
 
-**Smell**: Single-use Request/Response/DTO/Exception in dedicated file.
-**Fix**: Nest types inside their consumer class/interface (usage/contract perimeter).
-
-```csharp
-// Nested private (internal implementation detail)
-public class Parser {
-    private HeaderInfo Extract() => new("prod", "v1");
-    private record HeaderInfo(string Product, string Version);
-}
-
-// Nested public in class (use-case contract without interface contract)
-public class CreateQuoteUseCase {
-    public async Task<Response> CreateAsync(Request req) { }
-    public record Request(string Code, decimal Amount);
-    public record Response(string Id, decimal Final);
-}
-
-// Nested public in interface (port contract perimeter)
-public interface IQuotePort {
-    Task<Result> SaveAsync(QuoteDto dto);
-    record QuoteDto(string Id, decimal Premium);
-}
-```
+**Smell**: a single-use Request/Response/DTO/Exception type in a dedicated file.
+**Fix**: Keep the type next to its only consumer (nested, or in the same file/module, whichever the language idiomatically allows).
 
 **Decision:**
 
 1. Domain entity? → Separate file
 2. Used by 2+ consumers? → Separate file
-3. Single consumer → Nest inside consumer class/interface
+3. Single consumer → Colocate with it
 
-**Verify before moving:** `grep -r "TypeName" src --include="*.cs" | wc -l` (≈2 = single use)
+**Verify before moving:** search the codebase for the type name; about 2 hits (definition + 1 use) means single use.
 
 ## Fowler Code Smells → Refactorings
 
-| Smell                                | Signal                                                               | Refactoring                            |
-| ------------------------------------ | -------------------------------------------------------------------- | -------------------------------------- |
-| **Long Method**                      | >10 lines, multiple levels of abstraction                            | Extract Method                         |
-| **Long Parameter List**              | >3-4 params                                                          | Introduce Parameter Object (C# record) |
-| **Feature Envy**                     | Method uses another class's data more than its own                   | Move Method                            |
-| **Primitive Obsession**              | `string customerCode`, `decimal premium` raw                      | Introduce Value Object                 |
-| **Data Clumps**                      | Same 3 params appear together repeatedly                             | Extract Record/Class                   |
-| **Shotgun Surgery**                  | 1 change touches 5+ files                                            | Move/consolidate                       |
-| **Divergent Change**                 | Class changes for multiple unrelated reasons                         | Extract Class (SRP)                    |
-| **Middle Man**                       | Class just delegates every call                                      | Remove Middle Man                      |
-| **Dead Code**                        | Unused methods, parameters, variables                                | Delete — never comment out             |
-| **Single-Use Type in Separate File** | Request/Response/DTO/Exception used by 1 consumer, in dedicated file | Nest in Consumer Class/Interface       |
+| Smell                                | Signal                                                               | Refactoring                                  |
+| ------------------------------------ | -------------------------------------------------------------------- | -------------------------------------------- |
+| **Long Method**                      | >10 lines, multiple levels of abstraction                            | Extract Function                             |
+| **Long Parameter List**              | >3-4 params                                                          | Introduce Parameter Object (record/struct)   |
+| **Feature Envy**                     | Function uses another unit's data more than its own                  | Move Function                                |
+| **Primitive Obsession**              | `customerCode: string`, `premium: number` passed raw                 | Introduce Value Object                       |
+| **Data Clumps**                      | Same 3 params appear together repeatedly                             | Extract Record/Class                         |
+| **Shotgun Surgery**                  | 1 change touches 5+ files                                            | Move/consolidate                             |
+| **Divergent Change**                 | Unit changes for multiple unrelated reasons                          | Extract Class/Module (SRP)                   |
+| **Middle Man**                       | Unit just delegates every call                                       | Remove Middle Man                            |
+| **Dead Code**                        | Unused functions, parameters, variables                              | Delete — never comment out                   |
+| **Single-Use Type in Separate File** | Request/Response/DTO/Exception used by 1 consumer, in dedicated file | Colocate with its consumer                   |
 
 ## YAGNI / KISS Boundaries
 
@@ -164,11 +139,12 @@ public interface IQuotePort {
 1. Green tests
 2. Identify ONE smell
 3. Apply ONE refactoring
-4. dotnet test --blame-crash  ← must stay green
+4. Run the tests  ← must stay green
 5. Repeat
 ```
 
 ## References
 
-- `AGENTS.md` — KISS/YAGNI, Clean as you go
+- [`references/csharp.md`](references/csharp.md) — the same rules in C# / .NET (`dotnet test --blame-crash`, records, nested types)
 - `.agents/skills/test-implementation/SKILL.md` — test patterns during refactor
+- The project's `AGENTS.md`, when it has one — KISS/YAGNI, Clean as you go
