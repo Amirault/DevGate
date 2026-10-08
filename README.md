@@ -27,12 +27,14 @@ flowchart LR
 
 <div align="center">
 
-![From a scaffolded spec to a ready-to-implement spec, gated at every step](docs/demo/demo.gif)
+![A real run of the workflow: /specify, human review of each section, /deliver-increment with its subagents, merge, DONE, /learn](docs/demo/demo.gif)
 
-<sub>Recorded from the real DevGate scripts and one real headless <code>claude -p</code> run; the
-terminal window is a re-enactment. The prompt was written for the demo, the agent self-attests the
-spec's quality checklist, and the approval step was run by hand. A real <code>/specify</code> session
-adds the grill and your per-section approval first (not shown).
+<sub>Condensed from one real run in a throwaway project, driven turn by turn with headless
+<code>claude -p</code> (the answers and approvals were typed by the demo author, playing the user).
+Agent text is verbatim, shortened with “…”; lefthook was real, GitHub was stubbed (<code>gh</code>
+printed the PR URL) and the merge was done by hand. Not shown: discovery, the grill (in this run the
+agent resolved its branches itself), five of the six section reviews, the plan details and session
+capture. The window is a re-enactment.
 <a href="docs/demo/render.py">How it was made</a></sub>
 
 </div>
