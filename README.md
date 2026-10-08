@@ -23,6 +23,7 @@ flowchart LR
     B --> C{{"✅ human says DONE"}}
     C --> D["📈 <b>learn</b><br/>retro from real sessions"]
     D -. "one evidenced improvement" .-> A
+    H["🤖 <b>autonomous-workflow</b><br/>headless agent: one increment ▸ PR ▸ learn ▸ learning PR ▸ asks to continue"] -.-> B
 ```
 
 <div align="center">
@@ -65,6 +66,7 @@ cp -R DevGate/.agents  your-project/.agents
 # 2. In your agent session, from the project
 /specify                      # grill → spec → human review → ready-to-implement
 /deliver-increment <spec>     # one increment → one draft PR, then it asks to continue
+/autonomous-workflow <spec>   # or let a headless agent (Hermes…) run one increment + learn, then ask to continue
 review                        # ask the agent to run the review skill on the current changes
 /learn <spec>                 # retro once the spec is DONE
 ```
@@ -184,6 +186,7 @@ Works from any directory or git worktree; bundles land in the main checkout's gi
 4. **Test what is marked `[TEST]`**
 5. **An increment is done only after its refactoring pass**
 6. **Reject scope creep** with the spec's *What NOT* section
+7. **A headless agent never merges and never skips the stop**: `autonomous-workflow` opens only Ask PRs and asks before every next increment
 
 ## Requirements & adaptation
 

@@ -49,14 +49,14 @@ You are the **orchestrator**. Each run delivers **one** increment and learns fro
 
 ### Phase 0 — PREFLIGHT (orchestrator)
 
-1. Resolve the spec (named by caller, or `.agents/skills/implement/scripts/list-implementable-specs.sh`).
-   Ambiguity → abort.
-2. Verify the spec status and a clean git state (`git status --porcelain` empty, except for the spec file itself), else abort.
-3. Record the run start: `<run-start>` = the output of `date -u +%Y-%m-%dT%H:%M:%SZ` (never typed or estimated). Learn uses it to keep this run's events only.
-4. **The caller says stop** ("stop the workflow on spec X", or "no" to the continue question) →
+1. **The caller says stop** ("stop the workflow on spec X", or "no" to the continue question) →
    deliver nothing and run no learn (each delivered increment already had its own): go to
    Phase 4 with outcome STOPPED BY HUMAN. The spec stays `implementation-in-progress` and can
    resume later.
+2. Resolve the spec (named by caller, or `.agents/skills/implement/scripts/list-implementable-specs.sh`).
+   Ambiguity → abort.
+3. Verify the spec status and a clean git state (`git status --porcelain` empty, except for the spec file itself), else abort.
+4. Record the run start: `<run-start>` = the output of `date -u +%Y-%m-%dT%H:%M:%SZ` (never typed or estimated). Learn uses it to keep this run's events only.
 
 ### Phase 1 — DELIVER ONE INCREMENT (inline)
 
@@ -108,16 +108,20 @@ Take the `Top learning` as-is (next ranked finding if it lacks evidence or a tar
 
 ### Phase 3 — LEARNING PR (orchestrator, when Phase 2 recorded a finding)
 
-1. Top learning: in the worktree apply the change (skill/script/template only, never production
-   code), then `python3 .agents/scripts/learnings.py record --slug <top slug> --fixed-by learning/<spec-slug>-<N>
---fix-target <file>#<section> --fix-why <why> --fixed-at <today>` and `index` (same script). Commit it with
-   the project's commit conventions (`build(skills): …`). No top learning: commit the recorded history
+1. Work from inside the learning worktree (`cd ../learning-<spec-slug>-<N>`), so `learnings.py` and git act on it, not on the main checkout. Top learning: apply the change (skill/script/template only, never production code), then:
+
+   ```bash
+   python3 .agents/scripts/learnings.py record --slug <top slug> --fixed-by learning/<spec-slug>-<N> \
+     --fix-target <file>#<section> --fix-why <why> --fixed-at <today>
+   python3 .agents/scripts/learnings.py index
+   ```
+
+   Commit it with the project's commit conventions (`build(skills): …`). No top learning: commit the recorded history
    (`docs(learnings): record increment <N> detections`).
-2. Open it with `gh pr create --draft` (Ask mode: it waits for a review), title = the commit title, body = the
+2. Push `learning/<spec-slug>-<N>` unless a push hook already did, then open it with `gh pr create --draft` (Ask mode: it waits for a review), title = the commit title, body = the
    findings, their evidence, and `learned from increment <N> of <spec-slug>: <increment PR URL>`.
-   Push the `learning/*` branch only if no push hook already did.
 3. Top learning: `record --slug <top slug> --fix-pr <PR URL>`, `index`, second commit
-   `docs(learnings): add learning PR link`.
+   `docs(learnings): add learning PR link`, pushed again unless a hook did.
 4. `git worktree remove ../learning-<spec-slug>-<N>`
 
 ### Phase 4 — REPORT AND QUESTION (orchestrator)
@@ -125,14 +129,16 @@ Take the `Top learning` as-is (next ranked finding if it lacks evidence or a tar
 ```markdown
 # Workflow Report — <spec-slug>, increment <N> of <M>
 
+<!-- STOPPED BY HUMAN: increment line = "not delivered this run", Increment PR and Learning PR = none, Next steps = re-invoke to resume (spec stays implementation-in-progress). -->
+
 **Outcome**: PR OPENED | SPEC IMPLEMENTED | WAITING FOR MERGE | STOPPED BY HUMAN | ABORTED (<phase> — <increment N> — <reason>)
 **Increment PR**: <URL> — branch workflow/<spec-slug>-<N>
-**Learning PR**: <URL> — branch learning/<spec-slug>-<N> | none (<learn found no new cross-spec improvement>)
+**Learning PR**: <URL> — branch learning/<spec-slug>-<N> (fix + history, or history only) | none (learn recorded nothing)
 **Spec status**: <status>
 
 ## Increment <N> — <goal>
 
-- <commit>: implement <DONE after G GAPs> · refactor <APPLIED | NONE_NEEDED> · review <PASS after K iterations: FIXED, FAIL, PASS> — fixes: <blockers fixed>
+- <commit>: implement <DONE after G GAPs> · refactor <APPLIED | NONE_NEEDED> · review <PASS after K iterations: FIXED, FAIL, PASS | STOPPED at the cap after 5 iterations> — fixes: <blockers fixed>
 
 ## Autonomous decisions (require your audit)
 

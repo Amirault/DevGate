@@ -65,7 +65,7 @@ export function parseMarker(
   // line — otherwise the next line's tokens bleed into `phase=...`, and a
   // marker-shaped heredoc/file body line would count as an emission.
   const firstLine = command.split("\n", 1)[0]!;
-  // Agents sometimes chain the marker (`cd Pricing; : SPEC_MARKER ...`,
+  // Agents sometimes chain the marker (`cd app; : SPEC_MARKER ...`,
   // `transition-spec.sh ... && : SPEC_MARKER ...`): it still ran, so accept it
   // as any unquoted `;` / `&&` segment of the first line.
   for (const segment of unquotedSegments(firstLine)) {
