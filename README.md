@@ -18,13 +18,15 @@ Ten plain `SKILL.md` files that turn "build me X" into reviewed, tested, one-PR-
 
 ```mermaid
 flowchart LR
-    A["📝 <b>specify</b><br/>grill · human review · approve"] --> B["📦 <b>deliver-increment</b><br/>implement ▸ refactor ▸ review ▸ commit ▸ draft PR"]
-    B -- "merge, then next increment" --> B
-    B --> C{{"✅ human says DONE"}}
-    C --> D["📈 <b>learn</b><br/>retro from real sessions"]
-    D -. "one evidenced improvement" .-> A
-    H["🤖 <b>autonomous-workflow</b><br/>headless agent: one increment ▸ PR ▸ learn ▸ learning PR ▸ asks to continue"] -.-> B
+    A["<b>1 · Specify</b><br/>you approve the spec"] --> B["<b>2 · Deliver</b><br/>one increment = one PR"]
+    B --> C["<b>3 · You merge</b><br/>and say DONE"]
+    C --> D["<b>4 · Learn</b><br/>one improvement"]
+    C -. "next increment" .-> B
+    style A fill:#e8f0fe,stroke:#4c6ef5,color:#111
+    style C fill:#e8f0fe,stroke:#4c6ef5,color:#111
 ```
+
+<sub>Blue = you decide. Everything else is done by the agent, in fresh subagents. A headless agent can run step 2 for you: [`autonomous-workflow`](.agents/skills/autonomous-workflow).</sub>
 
 <div align="center">
 
