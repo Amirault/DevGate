@@ -25,6 +25,20 @@ flowchart LR
     D -. "one evidenced improvement" .-> A
 ```
 
+<div align="center">
+
+![A real run of the workflow: /specify, human review of each section, /deliver-increment with its subagents, merge, DONE, /learn](docs/demo/demo.gif)
+
+<sub>Condensed from one real run in a throwaway project, driven turn by turn with headless
+<code>claude -p</code> (the answers and approvals were typed by the demo author, playing the user).
+Agent text is verbatim, shortened with “…”; lefthook was real, GitHub was stubbed (<code>gh</code>
+printed the PR URL) and the merge was done by hand. Not shown: discovery, the grill (in this run the
+agent resolved its branches itself), five of the six section reviews, the plan details and session
+capture. The window is a re-enactment.
+<a href="docs/demo/render.py">How it was made</a></sub>
+
+</div>
+
 ## Why DevGate
 
 Agents are fast. Left alone they are also fast at building the **wrong thing**, skipping tests and

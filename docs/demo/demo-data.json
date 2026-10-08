@@ -1,0 +1,189 @@
+{
+  "scenes": [
+    {
+      "title": "shop — claude",
+      "caption": "You run /specify. The agent restates the problem and asks; you confirm.",
+      "events": [
+        {
+          "user": "/specify A cart worth exactly 100 should get the 10% discount: cart.js uses > instead of >=."
+        },
+        {
+          "agent": [
+            "## Phase 1: Understand",
+            "Problem: `total()` in `cart.js` applies the 10% discount only when the sum is strictly above 100 (`sum > 100`). A cart worth exactly 100 pays full …",
+            "- Is the code or the comment the source of truth? I'm assuming the comment (\"100 and up\") and your request are right, and the code is the bug. If the …",
+            "Confirm, correct, or clarify before we proceed."
+          ]
+        },
+        {
+          "user": "Yes, you got it right. The comment is the source of truth, the code is the bug. 'Worth' means the pre-discount sum. One …"
+        },
+        {
+          "agent": [
+            "## Phase 3: Probe & Assess",
+            "1. What should the test pin? I recommend a single exact-100 case, `[{ price: 50, qty: 2 }]` → `90`. I'd also add `[{ price: 100, qty: 1 }]` → `90` as …",
+            "2. Should I also pin the just-below boundary, for example 99.99 → 99.99, so the threshold can't drift in the other direction? I recommend yes …"
+          ]
+        },
+        {
+          "user": "1. Both shapes, yes. 2. Yes, pin 99.99 too. 3. Agreed, rounding stays out of scope. 4. Agreed, no …"
+        }
+      ]
+    },
+    {
+      "title": "shop — claude",
+      "caption": "The spec is reviewed one section at a time. You approve or revise each one.",
+      "events": [
+        {
+          "agent": [
+            "## Phase 4.5: Human Review — section [3/6]: `## What NOT`",
+            "Progress: ✅ Why · ✅ What · ▶ What NOT · ○ Acceptance Criteria · ○ Examples · ○ Technical Notes",
+            "> - We are NOT changing the discount rate (stays 10%) or the threshold value (stays 100).",
+            "> - We are NOT changing rounding or floating-point handling of the sum.",
+            "Verdict?  ✅ Approve · 🔧 Revise · ❌ Reject"
+          ]
+        },
+        {
+          "user": "🔧 Add one line: we are NOT restructuring total() — only the operator changes, no extra refactoring in this increment."
+        },
+        {
+          "agent": [
+            "## Phase 4.5: Human Review — section [3/6]: `## What NOT` (revised)",
+            "> - We are NOT restructuring `total()`: only the operator changes, with no extra refactoring in this increment.",
+            "One note on how the new line interacts with Phase 5. The workflow requires every increment to carry a bare `- [ ] **Refactoring**: subagent pass` checkbox, and the validator rejects a plan without it. That line is only a request …",
+            "Verdict?  ✅ Approve · 🔧 Revise · ❌ Reject"
+          ]
+        },
+        {
+          "user": "✅ Fine as worded — the pass may find nothing to do."
+        }
+      ]
+    },
+    {
+      "title": "shop — claude",
+      "caption": "All sections approved, the validator passes, the plan is written. You say Go.",
+      "events": [
+        {
+          "agent": [
+            "## Phase 4.5: Human Review — complete",
+            "All six sections approved ✅",
+            "✅ PASSED (0 issues), including `--require-plan`.",
+            "## Phase 5: Implementation Plan",
+            "1 increment, one pull request.",
+            "- Goal: A cart worth exactly 100 now gets the 10% discount (pays 90), matching the documented \"100 and up\" rule. Carts below and above 100 are …",
+            "- Commit: `fix(cart): apply 10% discount to a cart worth exactly 100`, which is also the PR title.",
+            "## Phase 6: Confirm   ✅ Go · 🔄 Iterate · 🛑 On-hold · 🗑️ Reject"
+          ]
+        },
+        {
+          "user": "Phase 6: approved, the plan is good. Move the spec to ready-to-implement."
+        },
+        {
+          "agent": [
+            "The spec docs/backlog/todo/2026-10-08-apply-discount-at-100.md is now ready-to-implement, approved at 2026-10-08T18:34:09Z. The transition re-validated the spec and its …",
+            "I have not changed any code. To implement it, run `/deliver-increment 2026-10-08-apply-discount-at-100`."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "shop — claude",
+      "caption": "/deliver-increment: 3 fresh subagents (implement, refactor, review), then commit and draft PR (gh stubbed).",
+      "note_gh": true,
+      "events": [
+        {
+          "user": "/deliver-increment 2026-10-08-apply-discount-at-100"
+        },
+        {
+          "tool": "Bash",
+          "arg": "… git switch -c workflow/2026-10-08-apply-discount-at-100-1 --no-track origin/main && …/transition-spec.sh … implementation-in-progress; …",
+          "result": []
+        },
+        {
+          "tool": "Agent",
+          "arg": "Implement increment 1",
+          "result": [
+            "Increment 1 … is implemented, and the full harness is green. Nothing is committed.",
+            "…",
+            "STATUS: DONE"
+          ]
+        },
+        {
+          "tool": "Agent",
+          "arg": "Refactor increment 1",
+          "result": [
+            "No refactoring was needed. Tests were green before and after, and I made no changes.",
+            "STATUS: NONE_NEEDED"
+          ]
+        },
+        {
+          "tool": "Agent",
+          "arg": "Review increment 1",
+          "result": [
+            "## Review: PASS",
+            "…",
+            "VERDICT: PASS"
+          ]
+        },
+        {
+          "tool": "Bash",
+          "arg": "… git commit -q -m \"fix(cart): apply 10% discount to a cart worth exactly 100\" …; git log --oneline -2; …",
+          "result": [
+            "🥊 lefthook v2.2.1  hook: pre-commit",
+            "✔️ tests (0.03 seconds)",
+            "7ef7c59 fix(cart): apply 10% discount to a cart worth exactly 100"
+          ]
+        },
+        {
+          "tool": "Bash",
+          "arg": "git push -u origin workflow/…-1 …; gh pr create --draft --base main --title \"fix(cart): apply 10% …\" …",
+          "result": [
+            "https://github.com/acme/shop/pull/1"
+          ]
+        },
+        {
+          "agent": [
+            "Outcome: SPEC IMPLEMENTED — last PR https://github.com/acme/shop/pull/1 (draft)",
+            "Next: last increment ready for review: https://github.com/acme/shop/pull/1. Merge it, then say DONE (review)."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "shop — claude",
+      "caption": "You merge the PR and say DONE. The spec is closed and filed under done/.",
+      "events": [
+        {
+          "user": "The pull request is merged into main. DONE — please close spec 2026-10-08-apply-discount-at-100."
+        },
+        {
+          "agent": [
+            "🏁 Spec 2026-10-08-apply-discount-at-100 is closed, but the closing commit is on a local branch that isn't pushed yet.",
+            "- Status: it is now done, with done_at stamped, and the file has moved from docs/backlog/in-progress/ to docs/backlog/done/."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "shop — claude",
+      "caption": "/learn reads the captured sessions and suggests at most one improvement to the workflow itself.",
+      "events": [
+        {
+          "user": "/learn 2026-10-08-apply-discount-at-100"
+        },
+        {
+          "agent": [
+            "## Learn: `2026-10-08-apply-discount-at-100`",
+            "The spec is done. The bundle is complete: 166 events across 5 conversations and the specify, implement and review phases, with no warnings.",
+            "The findings are friction points, not failures. All six are recorded in docs/learnings/ (uncommitted), and the index was regenerated.",
+            "### Suggested improvement",
+            "- Breakdown point: refactoring/SKILL.md is .NET-only, but it was applied to a Node project.",
+            "- Proposed fix: replace both dotnet test --blame-crash references with \"the full harness (.agents/skills/specify/references/harness.md)\". Leave the C# examples as an …",
+            "I applied no fix. The learning-history changes are uncommitted, as expected for a manual `/learn`."
+          ]
+        }
+      ]
+    }
+  ],
+  "provenance": "Condensed from one real, complete run of the DevGate workflow in a throwaway Node project (cart.js with an off-by-one discount), driven turn by turn with headless `claude -p --model sonnet`: /specify (answers and approvals typed by the demo author playing the user), /deliver-increment (three real subagents), a merge, DONE, and /learn. Agent text is verbatim, shortened with … where long (option lists such as Verdict/Go are shown on one line); markdown markers are rendered rather than shown; tool results are excerpts of the captured ones (long commands and results abbreviated with …). lefthook was real; there is no GitHub, so `gh` was a stub that printed the PR URL, a local bare repository stood in for origin and the merge was a fast-forward done by hand. /deliver-increment and /learn ran in fresh sessions. Not shown: the Phase 2 discover turn, the Phase 3.5 grill (the agent resolved its branches itself without asking), five of the six section reviews, the plan details, the quality checklist (ticked by the agent in one scripted edit), session capture, and the other five learn findings. The window, prompt, colours and typing animation are drawn by render.py."
+}
