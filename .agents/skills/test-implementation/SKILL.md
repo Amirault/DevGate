@@ -1,6 +1,6 @@
 ---
 name: test-implementation
-description: "Language-agnostic single source of truth for test patterns: tests as documentation, FIRST, Given/When/Then, naming, assertions on behavior, the right test per layer, test doubles last, false-positive prevention. Read before writing any test, even a simple one. Invoke when writing, modifying or reviewing tests, and whenever review or deliver-increment delegates to test patterns. Examples in pseudo-code; per-language references (C#/.NET included) hold concrete code."
+description: "Language-agnostic single source of truth for test patterns: tests as documentation, FIRST, Given/When/Then, naming, assertions on behavior, the right test per layer, test doubles last, false-positive prevention. Read before writing any test (`[Fact]`, `[Test]`, `[Theory]`, `it(...)`, `def test_...`), even a simple one. Invoke when writing, modifying or reviewing tests, and whenever review or deliver-increment delegates to test patterns. Examples in pseudo-code; per-language references (C#/.NET included) hold concrete code."
 effort: medium
 ---
 
@@ -44,6 +44,7 @@ Set up initial state, dependencies, and inputs.
 - **Only expose what matters** — objects must be fully constructed (all fields valid), but only the field that drives the scenario should be visible. Use a **baseline default + override** so irrelevant construction details never appear in the test body.
 
 ```text
+// (`expect(...)` below stands for your framework's assertion)
 // ✅ Fully valid object; only the relevant field is visible
 order = anyOrder with total = 200
 
@@ -142,7 +143,7 @@ execute_returnsNotNull_whenDataExists
 
 ## Test category
 
-When the project tags its tests, use one category per test class or file: `Spec` (drives a use case through its public entry point with fakes, outer TDD loop), `Unit` (a single unit in isolation, inner TDD loop), `Integration` (an adapter against the real technology it wraps), `Contract` (a shared suite run against every adapter of a port, or a check that a partner still honors an assumed contract), `Architecture` (a fitness function on dependencies). Full definitions: the project's `AGENTS.md`, when it has a Testing section. When the framework supports a human-readable description on a `Spec` test, write one: the business sentence a non-developer would read, independent of the test name — it is what living documentation extracts.
+Tag every test class or file with exactly one category: `Spec` (drives a use case through its public entry point with fakes, outer TDD loop), `Unit` (a single unit in isolation, inner TDD loop), `Integration` (an adapter against the real technology it wraps), `Contract` (a shared suite run against every adapter of a port, or a check that a partner still honors an assumed contract), `Architecture` (a fitness function on dependencies). Full definitions: the project's `AGENTS.md` → Testing, when it has one. A `Spec` test MUST carry a human-readable description (attribute, docstring or title, per framework): the business sentence a non-developer would read, independent of the test name — it is what living documentation extracts.
 
 ## Expressiveness over cleverness
 
@@ -171,7 +172,7 @@ A secondary adapter IS the integration with the external system. Test it against
 - Start the container and apply the real schema/migrations in the test setup; dispose it in teardown
 - GIVEN seeds data directly through the database client; WHEN calls the adapter; THEN reads back through the database client
 
-C# worked example (xUnit + PostgreSQL + EF Core): [references/csharp-secondary-adapter-testcontainers.md](references/csharp-secondary-adapter-testcontainers.md).
+Read before writing a new secondary-adapter test in C# — worked example (xUnit + PostgreSQL + EF Core): [references/csharp-secondary-adapter-testcontainers.md](references/csharp-secondary-adapter-testcontainers.md).
 
 ### Use cases — always unit tests with in-memory fakes
 

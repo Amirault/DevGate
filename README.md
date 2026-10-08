@@ -272,7 +272,7 @@ Works from any directory or git worktree; bundles land in the main checkout's gi
 - Unix-like shell, **Node.js ≥ 22** (the capture tool installs its own dependencies on first use), **Python 3** (`learnings.py`, stdlib only)
 - **Warp**, **Claude Code** or **Hermes** as the session source — the marker must be in that runtime's local store; cloud sessions are not captured
 - A project **harness**: `harness.md` assumes a Lefthook pre-commit hook run through `mise` — adapt [`harness.md`](.agents/skills/specify/references/harness.md) to your own checks
-- **Language-agnostic**: `refactoring` and `test-implementation` state their rules in pseudo-code and ship a concrete [C# / .NET reference](.agents/skills/test-implementation/references/csharp.md) each; add `references/<language>.md` for yours
+- **Language-agnostic**: `refactoring` and `test-implementation` state their rules in pseudo-code and ship a concrete C# / .NET reference each ([refactoring](.agents/skills/refactoring/references/csharp.md), [test-implementation](.agents/skills/test-implementation/references/csharp.md)); add `references/<language>.md` for yours
 - Spec templates use generic project placeholders; scripts are shell, tested on macOS and Linux
 
 </details>
