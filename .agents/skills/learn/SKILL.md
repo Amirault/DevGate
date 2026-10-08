@@ -23,7 +23,7 @@ scope:
 
 inputs:
   docs_root: >
-    Directory holding docs/learnings/ (a learning worktree for an autonomous run, the working
+    Directory holding docs/learnings/ (a learning worktree for an `autonomous-workflow` run, the working
     tree for a manual /learn: left uncommitted). Default: the project root.
   history: python3 .agents/scripts/learnings.py <match|record|index> --docs-root <docs_root>/docs/learnings
   sessions:

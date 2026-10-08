@@ -171,3 +171,4 @@ stateDiagram-v2
 - **grilling**: Phase 3.5 stress-test of decisions before spec writing
 - **review**: Reviews each increment before it is committed; the last increment's review also checks the whole spec
 - **deliver-increment skill**: Delivers the Implementation Plan one increment at a time, one pull request each (implement → refactor → review → commit → PR, fresh subagents), stopping after each PR
+- **autonomous-workflow**: Headless entry point that runs deliver-increment inline for one increment, then learn and a learning PR, then stops and asks whether to continue

@@ -172,4 +172,3 @@ public interface IQuotePort {
 
 - `AGENTS.md` — KISS/YAGNI, Clean as you go
 - `.agents/skills/test-implementation/SKILL.md` — test patterns during refactor
-- `references/static-analysis.md` — static analysis rules

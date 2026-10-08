@@ -22,8 +22,8 @@ One increment = one PR. Each increment has a clear goal, ships alone, is reviewe
 4. **One commit and one PR per increment, only after a clean PASS.** The subagents never commit. Invoking this skill is the explicit commit and PR request.
 5. **Review cap: 5 iterations** per increment. Then stop with a report.
 6. **Never push to `main`.** Push only the increment branch, at PR time (`git push -u origin <branch>`), or let the project's post-commit hook do it.
-7. **Modes differ only in who answers a GAP or a FAIL spec gap**: interactive (default) → ask the human; autonomous (the caller says so, e.g. an autonomous orchestrator) → decide. Either way, log the answer.
-8. **Stop after every increment, in every mode.** Once the PR is open, stop and ask whether to continue. Increment N+1 starts from `main` only after the PR of increment N is merged. An autonomous caller stops too.
+7. **Modes differ only in who answers a GAP or a FAIL spec gap**: interactive (default) → ask the human; autonomous (the caller says so, e.g. `autonomous-workflow`) → decide. Either way, log the answer.
+8. **Stop after every increment, in every mode.** Once the PR is open, stop and ask whether to continue. Increment N+1 starts from `main` only after the PR of increment N is merged. An autonomous caller (`autonomous-workflow`) stops too.
 
 ## Inputs
 
@@ -105,7 +105,7 @@ Handle the verdict per the contract. K = 5 without a PASS → stop with the repo
 
 ### 5. Ask draft PR
 
-Open it with `gh pr create --draft` — the **Ask** mode of Ship / Show / Ask: it waits for a review — title = the increment's **Commit** field. Write the body for a human reviewer, intention first:
+Push `workflow/<spec-slug>-<N>` first unless the project's hook already did (never to `main`), then open it with `gh pr create --draft` — the **Ask** mode of Ship / Show / Ask: it waits for a review — title = the increment's **Commit** field. Write the body for a human reviewer, intention first:
 
 - the increment's **Goal**, then "Increment N of M" and the spec path;
 - what changed, in a few sentences (not a file list);
@@ -113,7 +113,7 @@ Open it with `gh pr create --draft` — the **Ask** mode of Ship / Show / Ask: i
 - every open WARNING and RECOMMENDATION from this increment's review trace entries;
 - last increment: the `## Rollout observation` summary.
 
-Add the label `rollout:observe` to the last increment's PR when `## Rollout observation` exists. Never merge.
+Add the label `rollout:observe` (create it if missing) to the last increment's PR when `## Rollout observation` exists. Never merge.
 
 ### 6. Stop and ask
 

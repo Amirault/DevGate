@@ -5,9 +5,9 @@
 ### Spec first. Gates in between. Evidence at the end.
 
 **A spec-driven delivery workflow for AI coding agents.**<br/>
-Nine plain `SKILL.md` files that turn "build me X" into reviewed, tested, one-PR-at-a-time delivery.
+Ten plain `SKILL.md` files that turn "build me X" into reviewed, tested, one-PR-at-a-time delivery.
 
-![Skills](https://img.shields.io/badge/skills-9-8a2be2)
+![Skills](https://img.shields.io/badge/skills-10-8a2be2)
 ![Runtimes](https://img.shields.io/badge/Claude%20Code%20%C2%B7%20Warp%20%C2%B7%20Hermes-supported-success)
 ![Node](https://img.shields.io/badge/node-%E2%89%A5%2022-3c873a)
 ![Python](https://img.shields.io/badge/python-3-3776ab)
@@ -23,6 +23,7 @@ flowchart LR
     B --> C{{"✅ human says DONE"}}
     C --> D["📈 <b>learn</b><br/>retro from real sessions"]
     D -. "one evidenced improvement" .-> A
+    H["🤖 <b>autonomous-workflow</b><br/>headless agent: one increment ▸ PR ▸ learn ▸ learning PR ▸ asks to continue"] -.-> B
 ```
 
 <div align="center">
@@ -65,6 +66,7 @@ cp -R DevGate/.agents  your-project/.agents
 # 2. In your agent session, from the project
 /specify                      # grill → spec → human review → ready-to-implement
 /deliver-increment <spec>     # one increment → one draft PR, then it asks to continue
+/autonomous-workflow <spec>   # or let a headless agent (Hermes…) run one increment + learn, then ask to continue
 review                        # ask the agent to run the review skill on the current changes
 /learn <spec>                 # retro once the spec is DONE
 ```
@@ -140,6 +142,7 @@ Everything lives in [`.agents/`](.agents):
 | [`grilling`](.agents/skills/grilling) | Relentless interview that stress-tests a plan *(mandatory in specify)* |
 | [`human-review-spec`](.agents/skills/human-review-spec) | Per-section review with the human *(mandatory in specify)* |
 | [`deliver-increment`](.agents/skills/deliver-increment) | Orchestrates one increment: implement ▸ refactor ▸ review ▸ commit ▸ PR |
+| [`autonomous-workflow`](.agents/skills/autonomous-workflow) | Entry point for a headless agent (e.g. Hermes): one increment ▸ its PR ▸ `learn` ▸ learning PR, then stops and asks to continue |
 | [`implement`](.agents/skills/implement) | Implements ONE increment *(the `implement(N)` subagent)* |
 | [`refactoring`](.agents/skills/refactoring) | Fowler's smells, SOLID, Uncle Bob — run after every increment |
 | [`test-implementation`](.agents/skills/test-implementation) | FIRST, Given/When/Then, exclusion testing |
@@ -183,6 +186,7 @@ Works from any directory or git worktree; bundles land in the main checkout's gi
 4. **Test what is marked `[TEST]`**
 5. **An increment is done only after its refactoring pass**
 6. **Reject scope creep** with the spec's *What NOT* section
+7. **A headless agent never merges and never skips the stop**: `autonomous-workflow` opens only Ask PRs and asks before every next increment
 
 ## Requirements & adaptation
 
