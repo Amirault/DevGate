@@ -5,7 +5,8 @@
 ### Spec first. Gates in between. Evidence at the end.
 
 **A spec-driven delivery workflow for AI coding agents.**<br/>
-Ten plain `SKILL.md` files that turn "build me X" into reviewed, tested, one-PR-at-a-time delivery.
+Ten plain `SKILL.md` files that turn "build me X" into reviewed, tested, one-PR-at-a-time delivery.<br/>
+Drive it yourself, or **hand it to a headless agent** that works through the plan while you only approve and merge.
 
 ![Skills](https://img.shields.io/badge/skills-10-8a2be2)
 ![Runtimes](https://img.shields.io/badge/Claude%20Code%20%C2%B7%20Warp%20%C2%B7%20Hermes-supported-success)
@@ -57,6 +58,30 @@ Agents are fast. Left alone they are also fast at building the **wrong thing**, 
 quietly widening scope. DevGate puts a human-approved gate between every step — and keeps the
 evidence, so the workflow improves with every spec.
 
+## Two ways to run it
+
+| | 🧑 **Interactive** | 🤖 **Headless** — [`autonomous-workflow`](.agents/skills/autonomous-workflow) |
+| --- | --- | --- |
+| **You type** | `/deliver-increment <spec>` | `/autonomous-workflow <spec>` — or tell Hermes "run the workflow on spec X" |
+| **One run =** | one increment → one draft PR | one increment → draft PR → **retro** → learning PR |
+| **A spec gap** | the agent asks you | the agent **decides and logs it** in the spec, then flags it in the PR |
+| **Phase work** | fresh subagents | fresh subagents — the orchestrator never does it itself |
+| **Then** | stops and asks to continue | stops and asks to continue |
+| **You keep** | the spec, the merge, `DONE` | the spec, the merge, `DONE` — it **never merges** |
+
+```mermaid
+flowchart LR
+    S["🧑 <b>Specify</b><br/>approve the spec"] --> R1["🤖 <b>Run 1</b><br/>increment ▸ PR ▸ retro ▸ learning PR"]
+    R1 --> M1["🧑 <b>Merge</b><br/>say “continue”"]
+    M1 --> R2["🤖 <b>Run 2</b><br/>same again"]
+    R2 --> M2["🧑 <b>Merge</b><br/>and say DONE"]
+    style S fill:#e8f0fe,stroke:#4c6ef5,color:#111
+    style M1 fill:#e8f0fe,stroke:#4c6ef5,color:#111
+    style M2 fill:#e8f0fe,stroke:#4c6ef5,color:#111
+```
+
+<sub>Every PR the headless agent opens is an **Ask** draft that waits for you. It aborts, leaving everything resumable, on a blocked phase or after 5 review iterations. Specifying is never autonomous.</sub>
+
 ## Quick start
 
 Needs a Unix shell, **Node.js ≥ 22** and **Python 3**. `refactoring` and `test-implementation` target C#/.NET; the rest is language-agnostic (more in *Requirements* below).
@@ -66,12 +91,15 @@ Needs a Unix shell, **Node.js ≥ 22** and **Python 3**. `refactoring` and `test
 cp -R DevGate/.agents  your-project/.agents
 
 # 2. In your agent session, from the project
-/specify                      # grill → spec → human review → ready-to-implement
-/deliver-increment <spec>     # one increment → one draft PR, then it asks to continue
-/learn <spec>                 # retro once the spec is DONE
-```
+/specify                      # grill → spec → human review → ready-to-implement  (always with you)
 
-Prefer a headless agent (Hermes…)? `/autonomous-workflow <spec>` runs one increment plus its retro, then asks to continue.
+# 3. Then pick a mode
+/deliver-increment <spec>     # interactive: one increment → one draft PR
+/autonomous-workflow <spec>   # headless:    one increment → PR → retro → learning PR
+
+# 4. Merge the PR, answer "continue", repeat — then say DONE
+/learn <spec>                 # retro on the whole spec (headless already ran one per increment)
+```
 
 <details>
 <summary><b>The gates — what DevGate enforces</b></summary>
