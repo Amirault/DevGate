@@ -18,33 +18,65 @@ Ten plain `SKILL.md` files that turn "build me X" into reviewed, tested, one-PR-
 
 ```mermaid
 flowchart LR
-    A["📝 <b>specify</b><br/>grill · human review · approve"] --> B["📦 <b>deliver-increment</b><br/>implement ▸ refactor ▸ review ▸ commit ▸ draft PR"]
-    B -- "merge, then next increment" --> B
-    B --> C{{"✅ human says DONE"}}
-    C --> D["📈 <b>learn</b><br/>retro from real sessions"]
-    D -. "one evidenced improvement" .-> A
-    H["🤖 <b>autonomous-workflow</b><br/>headless agent: one increment ▸ PR ▸ learn ▸ learning PR ▸ asks to continue"] -.-> B
+    A["<b>1 · Specify</b><br/>you approve the spec"] --> B["<b>2 · Deliver</b><br/>one increment = one PR"]
+    B --> C["<b>3 · You merge</b><br/>and say DONE"]
+    C --> D["<b>4 · Learn</b><br/>one improvement"]
+    C -. "next increment" .-> B
+    style A fill:#e8f0fe,stroke:#4c6ef5,color:#111
+    style C fill:#e8f0fe,stroke:#4c6ef5,color:#111
 ```
+
+<sub>Blue = you decide. Everything else is done by the agent, in fresh subagents. A headless agent can run step 2 for you: [`autonomous-workflow`](.agents/skills/autonomous-workflow).</sub>
 
 <div align="center">
 
 ![A real run of the workflow: /specify, human review of each section, /deliver-increment with its subagents, merge, DONE, /learn](docs/demo/demo.gif)
 
-<sub>Condensed from one real run in a throwaway project, driven turn by turn with headless
+<sub>A condensed re-enactment of one real run (agent text verbatim, GitHub stubbed). Details below ▾</sub>
+
+</div>
+
+<details>
+<summary><b>About this demo — what is real, what is not</b></summary>
+
+<br/>
+
+Condensed from one real run in a throwaway project, driven turn by turn with headless
 <code>claude -p</code> (the answers and approvals were typed by the demo author, playing the user).
 Agent text is verbatim, shortened with “…”; lefthook was real, GitHub was stubbed (<code>gh</code>
 printed the PR URL) and the merge was done by hand. Not shown: discovery, the grill (in this run the
 agent resolved its branches itself), five of the six section reviews, the plan details and session
 capture. The window is a re-enactment.
-<a href="docs/demo/render.py">How it was made</a></sub>
+<a href="docs/demo/render.py">How it was made</a>
 
-</div>
+</details>
 
 ## Why DevGate
 
 Agents are fast. Left alone they are also fast at building the **wrong thing**, skipping tests and
-quietly widening scope. DevGate puts a gate between every step — and keeps the evidence, so the
-workflow itself improves with every spec.
+quietly widening scope. DevGate puts a human-approved gate between every step — and keeps the
+evidence, so the workflow improves with every spec.
+
+## Quick start
+
+Needs a Unix shell, **Node.js ≥ 22** and **Python 3**. `refactoring` and `test-implementation` target C#/.NET; the rest is language-agnostic (more in *Requirements* below).
+
+```bash
+# 1. Copy the workflow into your project
+cp -R DevGate/.agents  your-project/.agents
+
+# 2. In your agent session, from the project
+/specify                      # grill → spec → human review → ready-to-implement
+/deliver-increment <spec>     # one increment → one draft PR, then it asks to continue
+/learn <spec>                 # retro once the spec is DONE
+```
+
+Prefer a headless agent (Hermes…)? `/autonomous-workflow <spec>` runs one increment plus its retro, then asks to continue.
+
+<details>
+<summary><b>The gates — what DevGate enforces</b></summary>
+
+<br/>
 
 | | Gate | What it enforces |
 | :-: | --- | --- |
@@ -57,31 +89,12 @@ workflow itself improves with every spec.
 | 🔎 | **Impact-aware review** | The diff *and* its blast radius are validated before sign-off. |
 | 📈 | **Learning loop** | A retro on real conversations proposes at most one evidenced improvement. |
 
-## Quick start
+</details>
 
-```bash
-# 1. Copy the workflow into your project
-cp -R DevGate/.agents  your-project/.agents
+<details>
+<summary><b>The four phases</b></summary>
 
-# 2. In your agent session, from the project
-/specify                      # grill → spec → human review → ready-to-implement
-/deliver-increment <spec>     # one increment → one draft PR, then it asks to continue
-/autonomous-workflow <spec>   # or let a headless agent (Hermes…) run one increment + learn, then ask to continue
-review                        # ask the agent to run the review skill on the current changes
-/learn <spec>                 # retro once the spec is DONE
-```
-
-A spec lives in `docs/backlog/` and moves through its lifecycle on its own:
-
-```text
-docs/backlog/
-├── todo/          specifying → ready-to-implement
-├── in-progress/   implementation-in-progress → implemented
-├── done/          after your explicit DONE
-└── rejected/
-```
-
-## The four phases
+<br/>
 
 <table>
 <tr>
@@ -132,7 +145,29 @@ Get better with every spec.
 </tr>
 </table>
 
-## What's inside
+</details>
+
+<details>
+<summary><b>Where specs live</b></summary>
+
+<br/>
+
+A spec lives in `docs/backlog/` and moves through its lifecycle on its own:
+
+```text
+docs/backlog/
+├── todo/          specifying → ready-to-implement
+├── in-progress/   implementation-in-progress → implemented
+├── done/          after your explicit DONE
+└── rejected/
+```
+
+</details>
+
+<details>
+<summary><b>What's inside — 10 skills and 2 tools</b></summary>
+
+<br/>
 
 Everything lives in [`.agents/`](.agents):
 
@@ -156,7 +191,12 @@ Plus two tools:
 | [`capture-spec-sessions`](.agents/tools/capture-spec-sessions) | Exports a spec's full conversation history (Warp, Claude Code or Hermes) as JSONL for `learn` |
 | [`scripts/learnings.py`](.agents/scripts) | Stdlib-only writer and checker of the learning history in [`docs/learnings/`](docs/learnings/SCHEMA.md) |
 
-## Evidence: session capture
+</details>
+
+<details>
+<summary><b>Evidence: session capture</b></summary>
+
+<br/>
 
 Each phase emits a one-line shell no-op that binds its conversation to the spec:
 
@@ -178,7 +218,12 @@ Works from any directory or git worktree; bundles land in the main checkout's gi
 > [**agent-session-capture**](https://github.com/Amirault/agent-session-capture): one generic
 > marker, any id, same adapters.
 
-## Core principles
+</details>
+
+<details>
+<summary><b>Core principles</b></summary>
+
+<br/>
 
 1. **No implementation before spec approval**
 2. **The spec is the source of truth**
@@ -188,10 +233,17 @@ Works from any directory or git worktree; bundles land in the main checkout's gi
 6. **Reject scope creep** with the spec's *What NOT* section
 7. **A headless agent never merges and never skips the stop**: `autonomous-workflow` opens only Ask PRs and asks before every next increment
 
-## Requirements & adaptation
+</details>
+
+<details>
+<summary><b>Requirements &amp; adaptation</b></summary>
+
+<br/>
 
 - Unix-like shell, **Node.js ≥ 22** (the capture tool installs its own dependencies on first use), **Python 3** (`learnings.py`, stdlib only)
 - **Warp**, **Claude Code** or **Hermes** as the session source — the marker must be in that runtime's local store; cloud sessions are not captured
 - A project **harness**: `harness.md` assumes a Lefthook pre-commit hook run through `mise` — adapt [`harness.md`](.agents/skills/specify/references/harness.md) to your own checks
 - `refactoring` and `test-implementation` target **C#/.NET**; the other skills are language-agnostic
 - Spec templates use generic project placeholders; scripts are shell, tested on macOS and Linux
+
+</details>
